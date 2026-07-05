@@ -1,0 +1,301 @@
+openapi: "3.0.3"
+
+info:
+  title: SwasthyaConnect API Gateway
+  description: >
+    Fictional Indian digital health gateway for the Shadow API Scanner demo
+    (HCIC-SI2026, Project 15). This spec documents ONLY the four intentionally
+    published endpoints. Any endpoint not listed here that appears in production
+    access logs is, by definition, a Shadow API.
+  version: "1.0.0"
+  contact:
+    name: SwasthyaConnect Platform Team (fictional)
+    email: platform@swasthyaconnect.example
+
+servers:
+  - url: http://localhost:8000
+    description: Local mock server (demo / scanner target)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Security scheme – Bearer token (JWT-style in production; static tokens in mock)
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Pass a valid Bearer token in the Authorization header.
+        Example: Authorization: Bearer token-patient-101
+
+  schemas:
+    PatientSummary:
+      type: object
+      description: >
+        Minimal patient demographic record returned by the documented endpoint.
+        Deliberately excludes sensitive fields (aadhaar_number, diagnosis,
+        prescription) — those fields must never appear on this path.
+      required: [id, name, age, gender, blood_group, abha_id]
+      properties:
+        id:
+          type: integer
+          example: 104
+        name:
+          type: string
+          example: "Patient_004"
+        age:
+          type: integer
+          example: 55
+        gender:
+          type: string
+          enum: [M, F, O]
+          example: "M"
+        blood_group:
+          type: string
+          example: "AB+"
+        abha_id:
+          type: string
+          description: ABHA Health Account ID (fictional demo value)
+          example: "ABHA-FAKE-0004"
+
+    DoctorSummary:
+      type: object
+      required: [id, name, speciality, hospital]
+      properties:
+        id:
+          type: integer
+          example: 2
+        name:
+          type: string
+          example: "Dr. Priya Nair"
+        speciality:
+          type: string
+          example: "Nephrology"
+        hospital:
+          type: string
+          example: "AIIMS Fictional"
+
+    AppointmentRequest:
+      type: object
+      required: [patient_id, doctor_id]
+      properties:
+        patient_id:
+          type: integer
+          example: 101
+        doctor_id:
+          type: integer
+          example: 3
+        date:
+          type: string
+          format: date
+          example: "2026-07-20"
+        slot:
+          type: string
+          example: "11:00"
+
+    AppointmentResponse:
+      type: object
+      required: [id, patient_id, doctor_id, status]
+      properties:
+        id:
+          type: integer
+          example: 1004
+        patient_id:
+          type: integer
+          example: 101
+        doctor_id:
+          type: integer
+          example: 3
+        date:
+          type: string
+          format: date
+          example: "2026-07-20"
+        slot:
+          type: string
+          example: "11:00"
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled]
+          example: "pending"
+
+    HealthResponse:
+      type: object
+      required: [status, service, version, environment]
+      properties:
+        status:
+          type: string
+          example: "ok"
+        service:
+          type: string
+          example: "SwasthyaConnect API Gateway"
+        version:
+          type: string
+          example: "1.0.0"
+        environment:
+          type: string
+          example: "mock-demo"
+
+    ErrorResponse:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          example: "Unauthorized"
+        code:
+          type: integer
+          example: 401
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Documented paths — ONLY these four.
+# Path template style: {id}  (curly-brace, OpenAPI standard)
+# The log_parser.py normaliser uses the same convention so diff_engine.py can
+# compare the two sets directly without any extra translation step.
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  /api/v1/health:
+    get:
+      operationId: getHealth
+      summary: Public health check
+      description: >
+        Returns gateway liveness status. No authentication required.
+        Expected to appear in logs at high frequency; scanner must NOT flag
+        this as a shadow endpoint (false-positive avoidance test case).
+      tags: [Infrastructure]
+      # Explicitly no security requirement (overrides any global default)
+      security: []
+      responses:
+        "200":
+          description: Gateway is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/v1/patients/{id}:
+    get:
+      operationId: getPatientById
+      summary: Get patient demographic summary
+      description: >
+        Returns minimal patient demographic information (name, age, gender,
+        blood group, ABHA ID). Deliberately excludes sensitive clinical fields
+        (aadhaar_number, diagnosis, prescription, insurance_claims).
+        Requires a valid Bearer token; ownership enforcement is the caller's
+        responsibility (the gateway validates token presence only).
+      tags: [Patients]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Numeric patient identifier
+          schema:
+            type: integer
+            example: 104
+      responses:
+        "200":
+          description: Patient demographic summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientSummary"
+        "401":
+          description: Missing or invalid Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Patient not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/appointments:
+    post:
+      operationId: createAppointment
+      summary: Book a new appointment
+      description: >
+        Creates a new patient–doctor appointment slot. Requires a valid Bearer
+        token. Only POST is documented; DELETE on this resource family is NOT
+        part of the published API contract.
+      tags: [Appointments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentRequest"
+      responses:
+        "201":
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentResponse"
+        "400":
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/doctors/{id}:
+    get:
+      operationId: getDoctorById
+      summary: Get doctor profile
+      description: >
+        Returns a doctor's name, speciality, and hospital affiliation.
+        Requires a valid Bearer token.
+      tags: [Doctors]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Numeric doctor identifier
+          schema:
+            type: integer
+            example: 2
+      responses:
+        "200":
+          description: Doctor profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DoctorSummary"
+        "401":
+          description: Missing or invalid Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Doctor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+tags:
+  - name: Infrastructure
+    description: Liveness and readiness probes
+  - name: Patients
+    description: Patient demographic operations (intentionally minimal scope)
+  - name: Appointments
+    description: Appointment booking (POST only — see scanner findings for undocumented DELETE)
+  - name: Doctors
+    description: Doctor profile lookup

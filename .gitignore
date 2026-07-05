@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Virtual environment (rebuild locally with: python -m venv .venv)
+bin/
+lib/
+lib64/
+include/
+pyvenv.cfg
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Local scratch / regenerated artifacts (keep the 3 committed example
+# reports in the repo root, but ignore any NEW ones a reviewer generates
+# locally so they don't accidentally get committed over the originals)
+/report_local_test.html
