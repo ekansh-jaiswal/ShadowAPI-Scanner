@@ -8,7 +8,7 @@ __pycache__/
 # Virtual environment (rebuild locally with: python -m venv .venv)
 bin/
 lib/
-lib64/
+lib64
 include/
 pyvenv.cfg
 .venv/
