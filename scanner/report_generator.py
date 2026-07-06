@@ -625,7 +625,7 @@ body {
 <!-- 1. EXECUTIVE SUMMARY                                   -->
 <!-- ══════════════════════════════════════════════════════ -->
 <div class="section" id="summary">
-  <div class="section-title"><span class="icon">📊</span> Executive Summary</div>
+  <div class="section-title"> Executive Summary</div>
 
   <div class="stat-grid">
     <div class="stat-card stat-score">
@@ -696,7 +696,7 @@ body {
 <!-- 2. ATTACK SURFACE TABLE                                -->
 <!-- ══════════════════════════════════════════════════════ -->
 <div class="section" id="attack-surface">
-  <div class="section-title"><span class="icon">🗺️</span> Attack Surface Overview</div>
+  <div class="section-title"> Attack Surface Overview</div>
 
   <div class="table-controls">
     <input class="search-box" id="ep-search" type="text" placeholder="Filter endpoints…" oninput="filterTable()">
@@ -757,7 +757,7 @@ body {
 <!-- 3. PER-ENDPOINT DETAIL CARDS                           -->
 <!-- ══════════════════════════════════════════════════════ -->
 <div class="section" id="details">
-  <div class="section-title"><span class="icon">🔍</span> Endpoint Detail</div>
+  <div class="section-title"> Endpoint Detail</div>
 
   {% for se in scored_endpoints %}
   <div class="endpoint-card severity-{{ se.risk_level }}" id="card-{{ loop.index }}">
@@ -772,14 +772,14 @@ body {
     </div>
     <div class="card-body {{ 'open' if se.risk_level in ['CRITICAL','HIGH'] else '' }}">
       <div class="card-meta">
-        <div class="meta-item">📡 <strong>Hits:</strong> {{ se.hit_count }}</div>
-        <div class="meta-item">🔧 <strong>Methods:</strong>
+        <div class="meta-item"><strong>Hits:</strong> {{ se.hit_count }}</div>
+        <div class="meta-item"><strong>Methods:</strong>
           {% for m in se.methods | sort %}<span class="method-pill method-{{ m }}">{{ m }}</span>{% endfor %}
         </div>
-        <div class="meta-item">🔐 <strong>Auth:</strong> {{ se.auth_coverage }}</div>
-        <div class="meta-item">📈 <strong>Raw score:</strong> {{ se.raw_score }} → capped at {{ se.score }}</div>
+        <div class="meta-item"><strong>Auth:</strong> {{ se.auth_coverage }}</div>
+        <div class="meta-item"><strong>Raw score:</strong> {{ se.raw_score }} → capped at {{ se.score }}</div>
         {% if se.sample_paths %}
-        <div class="meta-item" style="width:100%">📂 <strong>Sample paths:</strong>
+        <div class="meta-item" style="width:100%"><strong>Sample paths:</strong>
           {% for sp in se.sample_paths %}<code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">{{ sp }}</code>{% endfor %}
         </div>
         {% endif %}
@@ -799,7 +799,7 @@ body {
 
         {% if f.evidence %}
         <div class="evidence-block">
-          <div class="ev-header">🔬 Active Probe Evidence</div>
+          <div class="ev-header">Active Probe Evidence</div>
           <pre>{% if f.evidence.url %}<span class="ev-label">URL:    </span><span class="ev-url">{{ f.evidence.url }}</span>
 {% endif %}{% if f.evidence.status %}<span class="ev-label">Status: </span><span class="ev-key">{{ f.evidence.status }} OK</span> — unauthorized access confirmed
 {% endif %}{% if f.evidence.burst_ip %}<span class="ev-label">Source IP:       </span><span class="ev-url">{{ f.evidence.burst_ip }}</span>
@@ -818,7 +818,7 @@ body {
         {% set dpdp_refs = dpdp_map.get(f.category) %}
         {% if dpdp_refs %}
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           {% for ref in dpdp_refs %}
           <div class="dpdp-item">
             <span class="dpdp-section">{{ ref.section }}</span><span class="dpdp-heading">{{ ref.heading }}</span>
@@ -832,7 +832,7 @@ body {
       {% endfor %}
       {% else %}
       <div style="color:var(--text-muted);font-style:italic;font-size:.88rem;padding:8px 0">
-        ✅ No risk findings for this endpoint.
+        No risk findings for this endpoint.
       </div>
       {% endif %}
     </div>
@@ -845,7 +845,7 @@ body {
 <!-- ══════════════════════════════════════════════════════ -->
 {% if dormant_endpoints %}
 <div class="section" id="dormant">
-  <div class="section-title"><span class="icon">💤</span> Dormant Documented Endpoints</div>
+  <div class="section-title"></span> Dormant Documented Endpoints</div>
   <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">
     These endpoints are declared in the OpenAPI spec but received zero traffic
     during the log window. They represent undiscovered or unused attack surface.
@@ -865,8 +865,8 @@ body {
 </div>
 {% else %}
 <div class="section" id="dormant">
-  <div class="section-title"><span class="icon">💤</span> Dormant Endpoints</div>
-  <div class="dormant-empty">✅ All documented endpoints received traffic — no dormant/zombie APIs detected.</div>
+  <div class="section-title"></span> Dormant Endpoints</div>
+  <div class="dormant-empty"> All documented endpoints received traffic — no dormant/zombie APIs detected.</div>
 </div>
 {% endif %}
 

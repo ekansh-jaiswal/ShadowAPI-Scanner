@@ -313,9 +313,9 @@ if __name__ == "__main__":
         # Per-method security detail (important if mixed)
         for op in ep.operations:
             auth_marker = {
-                "public":      "🌐 public (no auth)",
-                "bearerAuth":  "🔐 bearerAuth required",
-                "undeclared":  "❓ security undeclared",
+                "public":      " public (no auth)",
+                "bearerAuth":  " bearerAuth required",
+                "undeclared":  " security undeclared",
             }.get(op.security, f"? {op.security}")
             print(f"  └─ {op.method:<8} {auth_marker}   summary: {op.summary or '(none)'}")
         print()

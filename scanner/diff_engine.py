@@ -345,7 +345,7 @@ if __name__ == "__main__":
             sec  = o.spec_endpoint.security_label
             hits = o.log_record.hit_count
             methods = ",".join(sorted(o.log_record.methods_seen))
-            print(f"  ✅  {o.path_template:<50}  hits={hits:<4}  security={sec}")
+            print(f"    {o.path_template:<50}  hits={hits:<4}  security={sec}")
         print()
 
         # Fuzzy
@@ -353,7 +353,7 @@ if __name__ == "__main__":
             print(f"  FUZZY-RECONCILED ({len(result.fuzzy_reconciled)})")
             print(SEP_THIN)
             for fm in result.fuzzy_reconciled:
-                print(f"  🔀  discovered: {fm.discovered_template}")
+                print(f"     discovered: {fm.discovered_template}")
                 print(f"      spec:       {fm.spec_template}  (placeholder name differed)")
             print()
 
@@ -385,7 +385,7 @@ if __name__ == "__main__":
     print(f"  Expected shadow templates: {sorted(expected_shadow)}")
     print(f"  Got shadow templates     : {sorted(got_shadow)}")
     if shadow_ok:
-        print("  ✅  Shadow set matches expected exactly")
+        print("     Shadow set matches expected exactly")
     else:
         missing = expected_shadow - got_shadow
         extra   = got_shadow - expected_shadow
@@ -393,7 +393,7 @@ if __name__ == "__main__":
         if extra:   print(f"  ❌  Unexpected in shadow: {extra}")
 
     assert len(real_diff.dormant) == 0, "Expected 0 dormant endpoints in real fixture"
-    print("  ✅  Dormant set is empty (all 4 documented endpoints got traffic)")
+    print("     Dormant set is empty (all 4 documented endpoints got traffic)")
     print()
 
     # ── RUN 2: Synthetic dormant test ─────────────────────────────────────
@@ -419,7 +419,7 @@ if __name__ == "__main__":
     assert len(synthetic_diff.dormant) == 1, "Expected exactly 1 dormant"
     assert synthetic_diff.dormant[0].path_template == "/api/v1/doctors/{id}", \
         f"Wrong dormant endpoint: {synthetic_diff.dormant[0].path_template}"
-    print("  ✅  Dormant detection works: /api/v1/doctors/{id} correctly flagged as dormant")
+    print("     Dormant detection works: /api/v1/doctors/{id} correctly flagged as dormant")
     print()
 
     # ── RUN 3: Fuzzy match test ────────────────────────────────────────────
@@ -459,8 +459,8 @@ if __name__ == "__main__":
         "Expected /api/v1/doctors/{id} to be fuzzy-reconciled"
     assert len(fuzzy_diff.shadow) == 5, \
         f"Shadow count should still be 5, got {len(fuzzy_diff.shadow)}"
-    print("  ✅  Fuzzy reconciliation correct: {patientId}/{doctorId} matched to {id}")
-    print("  ✅  Shadow count unchanged at 5 (naming mismatch didn't create false positives)")
+    print("     Fuzzy reconciliation correct: {patientId}/{doctorId} matched to {id}")
+    print("     Shadow count unchanged at 5 (naming mismatch didn't create false positives)")
     print()
 
     print(SEP_THICK)
