@@ -1,0 +1,132 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in, headheight=14.5pt]{geometry}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+% Define professional accent color (Dark Navy)
+\definecolor{accent}{RGB}{0, 48, 96}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    urlcolor=accent,
+    linkcolor=accent
+}
+
+% Header and Footer setup (fancyhdr)
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\color{gray}\small Shadow API Discovery \& Vulnerability Scanner}
+\rhead{\color{gray}\small \nouppercase{\leftmark}}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+% Color the header rule gray
+\renewcommand{\headrule}{\hbox to\headwidth{\color{gray}\leaders\hrule height \headrulewidth\hfill}}
+
+% Section heading styling (titlesec)
+\titleformat{\section}
+  {\color{accent}\normalfont\Large\bfseries}
+  {\thesection}{1em}{}[{\color{accent}\titlerule[0.8pt]}]
+
+% Custom command for accent-colored sub-labels
+\newcommand{\sublabel}[1]{\textcolor{accent}{\textbf{#1}}}
+
+\begin{document}
+
+\begin{center}
+    {\Large \textbf{\textcolor{accent}{PROJECT TITLE: Shadow API Discovery \& Vulnerability Scanner}}} \\[0.5em]
+    Date: July 2026 \quad|\quad Author/Lead: Ekansh Jaiswal \quad|\quad Status: Completed / V1 Deployed \\[0.5em]
+    Project Links: \href{https://github.com/ekansh-jaiswal/ShadowAPI-Scanner}{https://github.com/ekansh-jaiswal/ShadowAPI-Scanner}
+\end{center}
+
+\vspace{1em}
+
+\section{Executive Overview}
+
+\sublabel{Objective:} To build a rule-based (non-ML) security scanner that discovers undocumented "Shadow APIs" in production systems by comparing real traffic against an official API specification, then actively verifies whether those undocumented endpoints are exploitable.
+
+\sublabel{The Challenge:} Digitized healthcare platforms --- such as India's ABDM-style digital health integrations --- expose extensive web APIs. Over time, some endpoints stop being documented: a legacy debug route, an old internal dashboard's private integration, or a "temporary" endpoint that quietly made it to production. These Shadow APIs are dangerous specifically because they are undocumented --- nobody is actively monitoring or securing something that nobody remembers exists, even though it may still be handling sensitive health data.
+
+\sublabel{The Solution:} A Python-based CLI pipeline that (1) parses web server access logs to determine every endpoint actually receiving traffic, (2) diffs this against an OpenAPI 3.0 specification to flag any endpoint not officially documented, (3) runs seven deterministic checks based on the OWASP API Security Top 10 (2023) against every discovered endpoint, and (4) for ownership-scoped resources, performs a live active network probe attempting cross-user access --- not inferring a vulnerability exists, but actually confirming it with a real request and a real response.
+
+\sublabel{Business Impact:} Demonstrated against a simulated "SwasthyaConnect" health gateway seeded with five deliberately undocumented endpoints, the scanner correctly identified all five Shadow APIs with zero false positives, and live-confirmed three critical Broken Object Level Authorization (BOLA) vulnerabilities --- each backed by an actual captured HTTP request/response showing one patient's Aadhaar number, diagnosis, and prescription data being returned using a different patient's login token. The tool also correctly avoided flagging two legitimate, non-vulnerable endpoints (a public health check and a public doctor directory) that an earlier, less careful version of the risk logic had incorrectly flagged --- a false-positive rate that matters as much as the true-positive rate in a tool meant to be trusted by a security team.
+
+\section{Technical Architecture \& Stack}
+
+\sublabel{Backend / Scripting:} Python 3.11, Flask (mock API server for demonstration), Jinja2 (report templating)
+
+\sublabel{Data \& Parsing:} PyYAML (OpenAPI spec parsing), openapi-spec-validator (spec correctness validation), regex-based Nginx combined-log parsing
+
+\sublabel{Frontend / Report:} Single self-contained HTML file --- inline CSS and vanilla JavaScript only, no external CDN dependencies, so the report is fully viewable offline and requires no server to render
+
+\sublabel{System Flow:} \\
+\texttt{[Access Logs + Auth-Header Log] + [OpenAPI Spec]} \\
+   $\rightarrow$ \texttt{[Log Parser / Spec Loader]} \\
+   $\rightarrow$ \texttt{[Diff Engine: Shadow / Dormant / Documented]} \\
+   $\rightarrow$ \texttt{[Risk Engine: 7 OWASP checks + live BOLA probe]} \\
+   $\rightarrow$ \texttt{[Scorer: weighted 0--100 risk score per endpoint]} \\
+   $\rightarrow$ \texttt{[HTML Report Generator]} \\
+   $\rightarrow$ \texttt{[CLI: CI/CD-ready exit codes]}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.9\textwidth]{architecture-diagram.png}
+    \caption{Shadow API Scanner --- system architecture and data flow}
+    \label{fig:architecture}
+\end{figure}
+
+\section{Key Deliverables \& Features}
+
+\sublabel{Shadow API Discovery:} Deterministically diffs discovered traffic against an OpenAPI spec to surface undocumented endpoints, using path-template normalization (e.g. \texttt{/patient/104} and \texttt{/patient/117} both correctly normalize to \texttt{/patient/\{id\}}) so real endpoints aren't miscounted as many different ones.
+
+\sublabel{Live BOLA Confirmation:} The scanner does not merely infer that an endpoint might be vulnerable from traffic patterns. It performs an active request using one user's authentication token against another user's resource, and records the real response. A finding is only marked CRITICAL when this live request succeeds --- the report shows the actual captured evidence, not a predicted risk.
+
+\sublabel{Ownership-Scope Filtering:} An early version of the BOLA probe fired indiscriminately on any numeric-ID endpoint, incorrectly flagging a public doctor-directory lookup as a vulnerability (looking up any doctor by ID is legitimate, expected behavior --- there is no "owner" of a doctor record). This was caught during manual review and fixed by restricting the BOLA probe to endpoints tied to genuinely ownership-scoped resources, eliminating this class of false positive.
+
+\sublabel{DPDP Act 2023 Contextual Overlay:} Findings involving personal or health data are annotated with the DPDP Act sections a reader may wish to review (e.g. Section 6 on purpose/collection limitation, Section 8(1) on reasonable security safeguards). All such references are deliberately phrased as "relevant to" or "may warrant review under" rather than "violates" --- the tool makes technical findings, not legal determinations.
+
+\section{Implementation of Highlights \& Performance}
+
+\sublabel{Security \& Compliance:} All demonstration data (patient records, Aadhaar-shaped numbers, diagnoses) is entirely synthetic; no real PII or production systems were accessed at any point in development or testing. The scanner's own active-probing feature is documented as intended for use only against systems the user owns or is explicitly authorized to test.
+
+\sublabel{Robustness / Failure Handling:} During manual testing, a genuine bug was discovered: running the scanner with the mock server unreachable still produced the full set of "confirmed" CRITICAL findings, identical to a run where the server was live --- meaning a network failure could silently produce misleading results. This was root-caused (a swallowed exception in the probe request handling) and fixed: the scanner now performs a startup health check, and if the target server is unreachable, it clearly displays a warning banner (both in the CLI and in the HTML report), automatically falls back to passive-only findings, and the risk score correctly drops (from CRITICAL/100 to HIGH/61 in the test case) rather than silently repeating stale results.
+
+\sublabel{Quality Assurance:} Every pipeline stage was manually verified against real output at each step --- including deliberately breaking the tool (missing files, malformed specs, a killed mid-scan server) rather than only testing the happy path. The CLI's exit-code logic (used for CI/CD gating) was verified across six scenarios: a full scan, a passive-only scan, and four \texttt{--fail-on} severity threshold combinations, including catching and fixing a rank-comparison bug where \texttt{--fail-on medium} failed to trigger on a CRITICAL finding due to an incorrect set-membership check instead of a severity-rank comparison.
+
+\section{Challenges \& Strategic Roadmap}
+
+\sublabel{Primary Technical Hurdle:} Distinguishing a genuine authorization vulnerability from a legitimate public lookup endpoint, without using machine learning. A naive "any endpoint with a numeric ID is BOLA-testable" rule produces false positives on resources that have no ownership concept at all (e.g. a public doctor directory).
+
+\sublabel{Resolution:} Introduced an ownership-scope classification step using resource-name heuristics (patient, appointment, insurance, otp, debug, prescription) to restrict active BOLA probing to endpoints where cross-user access is a meaningful, checkable concern --- verified by confirming the doctor-directory and health-check endpoints correctly produce zero findings after the fix, alongside re-confirming the three genuine BOLA vulnerabilities still triggered correctly.
+
+\sublabel{Next Steps (Phase 2):}
+\begin{itemize}
+    \item Attack-graph visualization showing relationships between discovered endpoints (shared auth patterns, resource clustering)
+    \item Temporal drift detection: comparing two log snapshots over time to surface newly appeared shadow endpoints as an early-warning signal
+    \item Extending the ownership-scope classifier beyond keyword matching toward a response-diffing approach (comparing responses across different user tokens) for more accurate detection on real-world APIs with unfamiliar naming conventions
+\end{itemize}
+
+\section{External Validation via OWASP crAPI}
+
+\sublabel{Objective:} To validate the Shadow API Scanner against a recognized, third-party vulnerable application (OWASP Completely Ridiculous API) and prove the tool's efficacy and BOLA detection logic on an external system, rather than just our custom mock server.
+
+\sublabel{Current Status:}
+\begin{itemize}
+    \item The crAPI codebase (\texttt{crAPI-main}) has been integrated into the project workspace.
+    \item The multi-container Docker Compose deployment was successfully configured and initiated.
+    \item The crAPI microservices were successfully brought up, with the main web interface confirmed reachable on port 8888.
+\end{itemize}
+
+\sublabel{Next Steps (Validation Underway):}
+\begin{itemize}
+    \item Capture real user traffic traversing the crAPI application to generate a realistic \texttt{access.log} representing external traffic patterns.
+    \item Run the scanner's passive log diffing and active BOLA probe against the live crAPI endpoints to confirm successful detection of its deliberately vulnerable authorization models.
+\end{itemize}
+
+\vspace{2em}
+\noindent \sublabel{Note:} For installation instructions, the full CLI reference, and a guide to interpreting the HTML report, see \texttt{USER\_MANUAL.md} in the project repository. A complete build log and all external references consulted are recorded in \texttt{research\_log.md}, per project documentation requirements.
+
+\end{document}

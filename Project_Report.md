@@ -74,13 +74,12 @@ normalization (e.g. /patient/104 and /patient/117 both correctly normalize
 to /patient/{id}) so real endpoints aren't miscounted as many different
 ones.
 
-Live BOLA Confirmation: Rather than only inferring a vulnerability from log
-patterns, the scanner performs an active network probe — attempting to
-access another user's resource using a different user's authentication
-token — and captures the real request and response as evidence. This
-distinguishes "we suspect this might be broken" from "we just proved this
-is broken," which is a meaningfully stronger claim for a security report to
-make.
+Live BOLA Confirmation: The scanner does not merely infer that an endpoint
+might be vulnerable from traffic patterns. It performs an active request
+using one user's authentication token against another user's resource, and
+records the real response. A finding is only marked CRITICAL when this live
+request succeeds — the report shows the actual captured evidence, not a
+predicted risk.
 
 Ownership-Scope Filtering: An early version of the BOLA probe fired
 indiscriminately on any numeric-ID endpoint, incorrectly flagging a public
@@ -160,3 +159,24 @@ Note: For installation instructions, the full CLI reference, and a guide to
 interpreting the HTML report, see USER_MANUAL.md in the project repository.
 A complete build log and all external references consulted are recorded in
 research_log.md, per project documentation requirements.
+
+
+6. External Validation via OWASP crAPI (In Progress)
+
+Objective: 
+To validate the Shadow API Scanner against a recognized, third-party vulnerable
+application (OWASP Completely Ridiculous API) and prove the tool's efficacy and
+BOLA detection logic on an external system, rather than just our custom mock server.
+
+Current Status:
+- The crAPI codebase (`crAPI-main`) has been integrated into the project workspace.
+- The multi-container Docker Compose deployment was successfully configured and initiated.
+- The crAPI microservices were successfully brought up, with the main web interface
+  confirmed reachable on port 8888.
+
+Next Steps (Validation Underway):
+- Capture real user traffic traversing the crAPI application to generate a realistic
+  `access.log` representing external traffic patterns.
+- Run the scanner's passive log diffing and active BOLA probe against the live crAPI
+  endpoints to confirm successful detection of its deliberately vulnerable authorization
+  models.

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SwasthyaConnect API Gateway — Shadow API Scan Report</title>
-<meta name="description" content="Shadow API Discovery and Vulnerability Scan Report for SwasthyaConnect API Gateway. Generated 2026-07-06 00:12:53 IST.">
+<meta name="description" content="Shadow API Discovery and Vulnerability Scan Report for SwasthyaConnect API Gateway. Generated 2026-07-09 15:37:02 IST.">
 <style>
 /* ── Reset & Tokens ─────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -275,6 +275,28 @@ body {
   font-size: .7rem; color: #0f766e; margin-top: 8px; font-style: italic;
 }
 
+/* ── Probe Warning Banner ─────────────────────────────────────────────── */
+.probe-warning {
+  background: #fffbeb;
+  border-left: 4px solid #f59e0b;
+  color: #92400e;
+  padding: 14px 18px;
+  margin: 0 auto 24px auto;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.probe-warning strong {
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 4px;
+  color: #b45309;
+}
+
+
 /* ── Evidence block (BOLA proof) ──────────────────────────────────────── */
 .evidence-block {
   background: #0d1117;
@@ -359,17 +381,19 @@ body {
   <div class="header-inner">
     <h1>🛡️ Shadow API Discovery &amp; Vulnerability Report</h1>
     <div class="subtitle">SwasthyaConnect API Gateway — SwasthyaConnect API Gateway Security Audit</div>
-    <div class="meta">Generated 2026-07-06 00:12:53 IST · Scanner v1.0 · HCIC-SI2026 Project 15</div>
+    <div class="meta">Generated 2026-07-09 15:37:02 IST · Scanner v1.0 · HCIC-SI2026 Project 15</div>
   </div>
 </div>
 
 <div class="page-wrap">
 
+
+
 <!-- ══════════════════════════════════════════════════════ -->
 <!-- 1. EXECUTIVE SUMMARY                                   -->
 <!-- ══════════════════════════════════════════════════════ -->
 <div class="section" id="summary">
-  <div class="section-title"><span class="icon">📊</span> Executive Summary</div>
+  <div class="section-title"> Executive Summary</div>
 
   <div class="stat-grid">
     <div class="stat-card stat-score">
@@ -494,7 +518,7 @@ body {
 <!-- 2. ATTACK SURFACE TABLE                                -->
 <!-- ══════════════════════════════════════════════════════ -->
 <div class="section" id="attack-surface">
-  <div class="section-title"><span class="icon">🗺️</span> Attack Surface Overview</div>
+  <div class="section-title"> Attack Surface Overview</div>
 
   <div class="table-controls">
     <input class="search-box" id="ep-search" type="text" placeholder="Filter endpoints…" oninput="filterTable()">
@@ -711,7 +735,7 @@ body {
 <!-- 3. PER-ENDPOINT DETAIL CARDS                           -->
 <!-- ══════════════════════════════════════════════════════ -->
 <div class="section" id="details">
-  <div class="section-title"><span class="icon">🔍</span> Endpoint Detail</div>
+  <div class="section-title"> Endpoint Detail</div>
 
   
   <div class="endpoint-card severity-CRITICAL" id="card-1">
@@ -726,14 +750,14 @@ body {
     </div>
     <div class="card-body open">
       <div class="card-meta">
-        <div class="meta-item">📡 <strong>Hits:</strong> 20</div>
-        <div class="meta-item">🔧 <strong>Methods:</strong>
+        <div class="meta-item"><strong>Hits:</strong> 20</div>
+        <div class="meta-item"><strong>Methods:</strong>
           <span class="method-pill method-GET">GET</span>
         </div>
-        <div class="meta-item">🔐 <strong>Auth:</strong> 0/20 requests had Authorization header</div>
-        <div class="meta-item">📈 <strong>Raw score:</strong> 101 → capped at 100</div>
+        <div class="meta-item"><strong>Auth:</strong> 0/20 requests had Authorization header</div>
+        <div class="meta-item"><strong>Raw score:</strong> 101 → capped at 100</div>
         
-        <div class="meta-item" style="width:100%">📂 <strong>Sample paths:</strong>
+        <div class="meta-item" style="width:100%"><strong>Sample paths:</strong>
           <code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/internal/debug/patient/108</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/internal/debug/patient/114</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/internal/debug/patient/107</code>
         </div>
         
@@ -761,7 +785,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -793,7 +817,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 6</span><span class="dpdp-heading">Limitation on purpose, collection, and storage of personal data</span>
@@ -830,7 +854,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -854,7 +878,7 @@ body {
 
         
         <div class="evidence-block">
-          <div class="ev-header">🔬 Active Probe Evidence</div>
+          <div class="ev-header">Active Probe Evidence</div>
           <pre><span class="ev-label">URL:    </span><span class="ev-url">http://localhost:8000/api/v1/internal/debug/patient/109</span>
 <span class="ev-label">Status: </span><span class="ev-key">200 OK</span> — unauthorized access confirmed
 <span class="ev-label">Response sample: </span>{'aadhaar_number': '000099990009', 'abha_id': 'ABHA-FAKE-0009', 'age': 44, 'blood_group': 'O+', 'diagnosis': 'Migraine (Chronic)', 'dob': '1982-06-14', 'gender': 'F', 'id': 109, 'insurance_claims': []</pre>
@@ -869,7 +893,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -898,7 +922,7 @@ body {
 
         
         <div class="evidence-block">
-          <div class="ev-header">🔬 Active Probe Evidence</div>
+          <div class="ev-header">Active Probe Evidence</div>
           <pre><span class="ev-label">PII fields found: </span><span class="ev-val">ssn, aadhaar_number, aadhaar, dob, diagnosis, prescription</span>
 <span class="ev-label">Response sample: </span>{'aadhaar_number': '000099990009', 'abha_id': 'ABHA-FAKE-0009', 'age': 44, 'blood_group': 'O+', 'diagnosis': 'Migraine (Chronic)', 'dob': '1982-06-14', 'gender': 'F', 'id': 109, 'insurance_claims': []</pre>
         </div>
@@ -912,7 +936,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 6</span><span class="dpdp-heading">Limitation on purpose, collection, and storage of personal data</span>
@@ -945,14 +969,14 @@ body {
     </div>
     <div class="card-body open">
       <div class="card-meta">
-        <div class="meta-item">📡 <strong>Hits:</strong> 35</div>
-        <div class="meta-item">🔧 <strong>Methods:</strong>
+        <div class="meta-item"><strong>Hits:</strong> 35</div>
+        <div class="meta-item"><strong>Methods:</strong>
           <span class="method-pill method-GET">GET</span>
         </div>
-        <div class="meta-item">🔐 <strong>Auth:</strong> 35/35 requests had Authorization header</div>
-        <div class="meta-item">📈 <strong>Raw score:</strong> 101 → capped at 100</div>
+        <div class="meta-item"><strong>Auth:</strong> 35/35 requests had Authorization header</div>
+        <div class="meta-item"><strong>Raw score:</strong> 101 → capped at 100</div>
         
-        <div class="meta-item" style="width:100%">📂 <strong>Sample paths:</strong>
+        <div class="meta-item" style="width:100%"><strong>Sample paths:</strong>
           <code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/patient-records/110</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/patient-records/101</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/patient-records/112</code>
         </div>
         
@@ -980,7 +1004,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1012,7 +1036,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 6</span><span class="dpdp-heading">Limitation on purpose, collection, and storage of personal data</span>
@@ -1041,7 +1065,7 @@ body {
 
         
         <div class="evidence-block">
-          <div class="ev-header">🔬 Active Probe Evidence</div>
+          <div class="ev-header">Active Probe Evidence</div>
           <pre><span class="ev-label">Source IP:       </span><span class="ev-url">192.168.100.50</span>
 <span class="ev-label">Requests seen:   </span><span class="ev-val">35</span>
 <span class="ev-label">Pattern:         </span><span class="ev-key">sustained</span>
@@ -1057,7 +1081,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1081,7 +1105,7 @@ body {
 
         
         <div class="evidence-block">
-          <div class="ev-header">🔬 Active Probe Evidence</div>
+          <div class="ev-header">Active Probe Evidence</div>
           <pre><span class="ev-label">URL:    </span><span class="ev-url">http://localhost:8000/api/v1/patient-records/111</span>
 <span class="ev-label">Status: </span><span class="ev-key">200 OK</span> — unauthorized access confirmed
 <span class="ev-label">Response sample: </span>{'aadhaar_number': '000011110011', 'abha_id': 'ABHA-FAKE-0011', 'age': 30, 'blood_group': 'B+', 'diagnosis': 'Hypothyroidism', 'dob': '1996-08-20', 'gender': 'F', 'id': 111, 'name': 'Patient_011', 'pr</pre>
@@ -1096,7 +1120,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1125,7 +1149,7 @@ body {
 
         
         <div class="evidence-block">
-          <div class="ev-header">🔬 Active Probe Evidence</div>
+          <div class="ev-header">Active Probe Evidence</div>
           <pre><span class="ev-label">PII fields found: </span><span class="ev-val">aadhaar_number, aadhaar, dob, diagnosis, prescription</span>
 <span class="ev-label">Response sample: </span>{'aadhaar_number': '000011110011', 'abha_id': 'ABHA-FAKE-0011', 'age': 30, 'blood_group': 'B+', 'diagnosis': 'Hypothyroidism', 'dob': '1996-08-20', 'gender': 'F', 'id': 111, 'name': 'Patient_011', 'pr</pre>
         </div>
@@ -1139,7 +1163,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 6</span><span class="dpdp-heading">Limitation on purpose, collection, and storage of personal data</span>
@@ -1172,14 +1196,14 @@ body {
     </div>
     <div class="card-body open">
       <div class="card-meta">
-        <div class="meta-item">📡 <strong>Hits:</strong> 60</div>
-        <div class="meta-item">🔧 <strong>Methods:</strong>
+        <div class="meta-item"><strong>Hits:</strong> 60</div>
+        <div class="meta-item"><strong>Methods:</strong>
           <span class="method-pill method-GET">GET</span>
         </div>
-        <div class="meta-item">🔐 <strong>Auth:</strong> 60/60 requests had Authorization header</div>
-        <div class="meta-item">📈 <strong>Raw score:</strong> 101 → capped at 100</div>
+        <div class="meta-item"><strong>Auth:</strong> 60/60 requests had Authorization header</div>
+        <div class="meta-item"><strong>Raw score:</strong> 101 → capped at 100</div>
         
-        <div class="meta-item" style="width:100%">📂 <strong>Sample paths:</strong>
+        <div class="meta-item" style="width:100%"><strong>Sample paths:</strong>
           <code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/patients/115/insurance-claims</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/patients/110/insurance-claims</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/patients/111/insurance-claims</code>
         </div>
         
@@ -1207,7 +1231,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1239,7 +1263,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 6</span><span class="dpdp-heading">Limitation on purpose, collection, and storage of personal data</span>
@@ -1268,7 +1292,7 @@ body {
 
         
         <div class="evidence-block">
-          <div class="ev-header">🔬 Active Probe Evidence</div>
+          <div class="ev-header">Active Probe Evidence</div>
           <pre><span class="ev-label">Source IP:       </span><span class="ev-url">45.33.32.156</span>
 <span class="ev-label">Requests seen:   </span><span class="ev-val">45</span>
 <span class="ev-label">Pattern:         </span><span class="ev-key">sustained</span>
@@ -1284,7 +1308,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1308,7 +1332,7 @@ body {
 
         
         <div class="evidence-block">
-          <div class="ev-header">🔬 Active Probe Evidence</div>
+          <div class="ev-header">Active Probe Evidence</div>
           <pre><span class="ev-label">URL:    </span><span class="ev-url">http://localhost:8000/api/v1/patients/114/insurance-claims</span>
 <span class="ev-label">Status: </span><span class="ev-key">200 OK</span> — unauthorized access confirmed
 <span class="ev-label">Response sample: </span>{'aadhaar_number': '000014140014', 'claims': [{'amount': 7200, 'claim_id': 'CLM-2025-012', 'status': 'approved'}], 'diagnosis': 'Psoriasis (Moderate)', 'patient_id': 114, 'patient_name': 'Patient_014'</pre>
@@ -1323,7 +1347,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1352,7 +1376,7 @@ body {
 
         
         <div class="evidence-block">
-          <div class="ev-header">🔬 Active Probe Evidence</div>
+          <div class="ev-header">Active Probe Evidence</div>
           <pre><span class="ev-label">PII fields found: </span><span class="ev-val">aadhaar_number, aadhaar, diagnosis</span>
 <span class="ev-label">Response sample: </span>{'aadhaar_number': '000014140014', 'claims': [{'amount': 7200, 'claim_id': 'CLM-2025-012', 'status': 'approved'}], 'diagnosis': 'Psoriasis (Moderate)', 'patient_id': 114, 'patient_name': 'Patient_014'</pre>
         </div>
@@ -1366,7 +1390,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 6</span><span class="dpdp-heading">Limitation on purpose, collection, and storage of personal data</span>
@@ -1397,14 +1421,14 @@ body {
     </div>
     <div class="card-body open">
       <div class="card-meta">
-        <div class="meta-item">📡 <strong>Hits:</strong> 124</div>
-        <div class="meta-item">🔧 <strong>Methods:</strong>
+        <div class="meta-item"><strong>Hits:</strong> 124</div>
+        <div class="meta-item"><strong>Methods:</strong>
           <span class="method-pill method-GET">GET</span>
         </div>
-        <div class="meta-item">🔐 <strong>Auth:</strong> 120/124 requests had Authorization header</div>
-        <div class="meta-item">📈 <strong>Raw score:</strong> 66 → capped at 66</div>
+        <div class="meta-item"><strong>Auth:</strong> 120/124 requests had Authorization header</div>
+        <div class="meta-item"><strong>Raw score:</strong> 66 → capped at 66</div>
         
-        <div class="meta-item" style="width:100%">📂 <strong>Sample paths:</strong>
+        <div class="meta-item" style="width:100%"><strong>Sample paths:</strong>
           <code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/patients/110</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/patients/102</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/patients/107</code>
         </div>
         
@@ -1432,7 +1456,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 6</span><span class="dpdp-heading">Limitation on purpose, collection, and storage of personal data</span>
@@ -1469,7 +1493,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1493,7 +1517,7 @@ body {
 
         
         <div class="evidence-block">
-          <div class="ev-header">🔬 Active Probe Evidence</div>
+          <div class="ev-header">Active Probe Evidence</div>
           <pre><span class="ev-label">URL:    </span><span class="ev-url">http://localhost:8000/api/v1/patients/111</span>
 <span class="ev-label">Status: </span><span class="ev-key">200 OK</span> — unauthorized access confirmed
 <span class="ev-label">Response sample: </span>{'abha_id': 'ABHA-FAKE-0011', 'age': 30, 'blood_group': 'B+', 'gender': 'F', 'id': 111, 'name': 'Patient_011'}</pre>
@@ -1508,7 +1532,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1541,14 +1565,14 @@ body {
     </div>
     <div class="card-body open">
       <div class="card-meta">
-        <div class="meta-item">📡 <strong>Hits:</strong> 52</div>
-        <div class="meta-item">🔧 <strong>Methods:</strong>
+        <div class="meta-item"><strong>Hits:</strong> 52</div>
+        <div class="meta-item"><strong>Methods:</strong>
           <span class="method-pill method-GET">GET</span>
         </div>
-        <div class="meta-item">🔐 <strong>Auth:</strong> 0/52 requests had Authorization header</div>
-        <div class="meta-item">📈 <strong>Raw score:</strong> 61 → capped at 61</div>
+        <div class="meta-item"><strong>Auth:</strong> 0/52 requests had Authorization header</div>
+        <div class="meta-item"><strong>Raw score:</strong> 61 → capped at 61</div>
         
-        <div class="meta-item" style="width:100%">📂 <strong>Sample paths:</strong>
+        <div class="meta-item" style="width:100%"><strong>Sample paths:</strong>
           <code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/otp/verify?patient_id=104&otp=914736</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/otp/verify?patient_id=104&otp=914737</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/otp/verify?patient_id=104&otp=914738</code>
         </div>
         
@@ -1576,7 +1600,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1608,7 +1632,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 6</span><span class="dpdp-heading">Limitation on purpose, collection, and storage of personal data</span>
@@ -1645,7 +1669,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1669,7 +1693,7 @@ body {
 
         
         <div class="evidence-block">
-          <div class="ev-header">🔬 Active Probe Evidence</div>
+          <div class="ev-header">Active Probe Evidence</div>
           <pre><span class="ev-label">Source IP:       </span><span class="ev-url">198.51.100.77</span>
 <span class="ev-label">Requests seen:   </span><span class="ev-val">52</span>
 <span class="ev-label">Pattern:         </span><span class="ev-key">sustained</span>
@@ -1685,7 +1709,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1713,14 +1737,14 @@ body {
     </div>
     <div class="card-body ">
       <div class="card-meta">
-        <div class="meta-item">📡 <strong>Hits:</strong> 14</div>
-        <div class="meta-item">🔧 <strong>Methods:</strong>
+        <div class="meta-item"><strong>Hits:</strong> 14</div>
+        <div class="meta-item"><strong>Methods:</strong>
           <span class="method-pill method-DELETE">DELETE</span>
         </div>
-        <div class="meta-item">🔐 <strong>Auth:</strong> 14/14 requests had Authorization header</div>
-        <div class="meta-item">📈 <strong>Raw score:</strong> 20 → capped at 20</div>
+        <div class="meta-item"><strong>Auth:</strong> 14/14 requests had Authorization header</div>
+        <div class="meta-item"><strong>Raw score:</strong> 20 → capped at 20</div>
         
-        <div class="meta-item" style="width:100%">📂 <strong>Sample paths:</strong>
+        <div class="meta-item" style="width:100%"><strong>Sample paths:</strong>
           <code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/appointments/1023</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/appointments/1011</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/appointments/1024</code>
         </div>
         
@@ -1748,7 +1772,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1780,7 +1804,7 @@ body {
         
         
         <div class="finding-dpdp">
-          <div class="dpdp-header">⚖️ DPDP Act 2023 — Provisions to Review</div>
+          <div class="dpdp-header">DPDP Act 2023 — Provisions to Review</div>
           
           <div class="dpdp-item">
             <span class="dpdp-section">Section 8(1)</span><span class="dpdp-heading">Obligations of Data Fiduciary — Reasonable Security Safeguards</span>
@@ -1806,14 +1830,14 @@ body {
     </div>
     <div class="card-body ">
       <div class="card-meta">
-        <div class="meta-item">📡 <strong>Hits:</strong> 40</div>
-        <div class="meta-item">🔧 <strong>Methods:</strong>
+        <div class="meta-item"><strong>Hits:</strong> 40</div>
+        <div class="meta-item"><strong>Methods:</strong>
           <span class="method-pill method-POST">POST</span>
         </div>
-        <div class="meta-item">🔐 <strong>Auth:</strong> 40/40 requests had Authorization header</div>
-        <div class="meta-item">📈 <strong>Raw score:</strong> 0 → capped at 0</div>
+        <div class="meta-item"><strong>Auth:</strong> 40/40 requests had Authorization header</div>
+        <div class="meta-item"><strong>Raw score:</strong> 0 → capped at 0</div>
         
-        <div class="meta-item" style="width:100%">📂 <strong>Sample paths:</strong>
+        <div class="meta-item" style="width:100%"><strong>Sample paths:</strong>
           <code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/appointments</code>
         </div>
         
@@ -1821,7 +1845,7 @@ body {
 
       
       <div style="color:var(--text-muted);font-style:italic;font-size:.88rem;padding:8px 0">
-        ✅ No risk findings for this endpoint.
+        No risk findings for this endpoint.
       </div>
       
     </div>
@@ -1837,14 +1861,14 @@ body {
     </div>
     <div class="card-body ">
       <div class="card-meta">
-        <div class="meta-item">📡 <strong>Hits:</strong> 60</div>
-        <div class="meta-item">🔧 <strong>Methods:</strong>
+        <div class="meta-item"><strong>Hits:</strong> 60</div>
+        <div class="meta-item"><strong>Methods:</strong>
           <span class="method-pill method-GET">GET</span>
         </div>
-        <div class="meta-item">🔐 <strong>Auth:</strong> 60/60 requests had Authorization header</div>
-        <div class="meta-item">📈 <strong>Raw score:</strong> 0 → capped at 0</div>
+        <div class="meta-item"><strong>Auth:</strong> 60/60 requests had Authorization header</div>
+        <div class="meta-item"><strong>Raw score:</strong> 0 → capped at 0</div>
         
-        <div class="meta-item" style="width:100%">📂 <strong>Sample paths:</strong>
+        <div class="meta-item" style="width:100%"><strong>Sample paths:</strong>
           <code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/doctors/4</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/doctors/3</code><code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/doctors/5</code>
         </div>
         
@@ -1852,7 +1876,7 @@ body {
 
       
       <div style="color:var(--text-muted);font-style:italic;font-size:.88rem;padding:8px 0">
-        ✅ No risk findings for this endpoint.
+        No risk findings for this endpoint.
       </div>
       
     </div>
@@ -1868,14 +1892,14 @@ body {
     </div>
     <div class="card-body ">
       <div class="card-meta">
-        <div class="meta-item">📡 <strong>Hits:</strong> 80</div>
-        <div class="meta-item">🔧 <strong>Methods:</strong>
+        <div class="meta-item"><strong>Hits:</strong> 80</div>
+        <div class="meta-item"><strong>Methods:</strong>
           <span class="method-pill method-GET">GET</span>
         </div>
-        <div class="meta-item">🔐 <strong>Auth:</strong> 0/80 requests had Authorization header</div>
-        <div class="meta-item">📈 <strong>Raw score:</strong> 0 → capped at 0</div>
+        <div class="meta-item"><strong>Auth:</strong> 0/80 requests had Authorization header</div>
+        <div class="meta-item"><strong>Raw score:</strong> 0 → capped at 0</div>
         
-        <div class="meta-item" style="width:100%">📂 <strong>Sample paths:</strong>
+        <div class="meta-item" style="width:100%"><strong>Sample paths:</strong>
           <code style="font-size:.78rem;color:var(--text-muted);margin-left:6px">/api/v1/health</code>
         </div>
         
@@ -1883,7 +1907,7 @@ body {
 
       
       <div style="color:var(--text-muted);font-style:italic;font-size:.88rem;padding:8px 0">
-        ✅ No risk findings for this endpoint.
+        No risk findings for this endpoint.
       </div>
       
     </div>
@@ -1896,15 +1920,15 @@ body {
 <!-- ══════════════════════════════════════════════════════ -->
 
 <div class="section" id="dormant">
-  <div class="section-title"><span class="icon">💤</span> Dormant Endpoints</div>
-  <div class="dormant-empty">✅ All documented endpoints received traffic — no dormant/zombie APIs detected.</div>
+  <div class="section-title"></span> Dormant Endpoints</div>
+  <div class="dormant-empty"> All documented endpoints received traffic — no dormant/zombie APIs detected.</div>
 </div>
 
 
 <!-- Footer -->
 <div class="report-footer">
   <div>Shadow API Discovery &amp; Vulnerability Scanner · HCIC-SI2026 · Project 15</div>
-  <div>2026-07-06 00:12:53 IST · All checks are rule-based, no ML/NLP · OWASP API Security Top 10 (2023)</div>
+  <div>2026-07-09 15:37:02 IST · All checks are rule-based, no ML/NLP · OWASP API Security Top 10 (2023)</div>
 </div>
 
 </div><!-- /page-wrap -->
