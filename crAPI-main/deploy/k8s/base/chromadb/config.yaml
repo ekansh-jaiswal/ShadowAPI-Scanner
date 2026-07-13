@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: chromadb-config
-  labels:
-    app: crapi-chromadb
-data:
-  IS_PERSISTENT: "TRUE"
