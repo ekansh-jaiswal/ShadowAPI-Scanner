@@ -62,9 +62,6 @@ Three pre-generated reports are included so you can see the output without runni
 │   ├── risk_engine.py          The 7 OWASP-based checks plus the live BOLA probe
 │   ├── scorer.py               Turns findings into a 0-100 risk score
 │   └── spec_loader.py          Parses and validates the OpenAPI spec
-├── report.html                 Pre-generated example report
-├── report_down.html            Pre-generated report (server unreachable)
-├── report_up.html              Pre-generated report (server healthy)
 ├── research_log.md             Sources cited and build milestones (Rule 4)
 ├── Shadow_API_Scanner_Build_Spec.md   Original design spec
 ├── USER_MANUAL.md              Full usage guide
