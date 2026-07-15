@@ -47,9 +47,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from typing import Optional
-
-# Support both `python scanner/diff_engine.py` (direct run) and
-# `from scanner.diff_engine import diff` (package import).
 try:
     from scanner.log_parser  import ParseResult, EndpointRecord
     from scanner.spec_loader import SpecResult, SpecEndpoint
@@ -58,12 +55,6 @@ except ModuleNotFoundError:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
     from scanner.log_parser  import ParseResult, EndpointRecord
     from scanner.spec_loader import SpecResult, SpecEndpoint
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Data classes
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class ShadowEndpoint:
     """An endpoint actively receiving traffic that is absent from the spec."""
@@ -111,8 +102,6 @@ class DiffResult:
     dormant:           list[DormantEndpoint]  = field(default_factory=list)
     ok:                list[OkEndpoint]       = field(default_factory=list)
     fuzzy_reconciled:  list[FuzzyMatch]       = field(default_factory=list)
-
-    # Convenience views
     @property
     def shadow_templates(self) -> set[str]:
         return {s.path_template for s in self.shadow}
@@ -132,13 +121,6 @@ class DiffResult:
     @property
     def total_documented(self) -> int:
         return len(self.dormant) + len(self.ok) + len(self.fuzzy_reconciled)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Fuzzy matching
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Matches any {…} placeholder in a path segment
 _PLACEHOLDER_RE = re.compile(r'^\{[^}]+\}$')
 
 
@@ -164,7 +146,6 @@ def templates_fuzzy_match(tmpl_a: str, tmpl_b: str) -> bool:
       /api/v1/patients/{id}    vs /api/v1/patient-records/{id}    → False
       /api/v1/health           vs /api/v1/health                  → True
     """
-    # Strip query strings defensively
     a = tmpl_a.split("?")[0]
     b = tmpl_b.split("?")[0]
 
@@ -200,12 +181,6 @@ def _find_fuzzy_spec_match(
         if templates_fuzzy_match(discovered_tmpl, spec_tmpl):
             return spec_ep
     return None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Core diff
-# ─────────────────────────────────────────────────────────────────────────────
-
 def diff(
     log_result:  ParseResult,
     spec_result: SpecResult,
@@ -223,15 +198,11 @@ def diff(
     DiffResult with all four categories populated.
     """
     result = DiffResult()
-
-    # Index log records by template for O(1) lookup
     log_by_tmpl: dict[str, EndpointRecord] = {
         rec.path_template: rec for rec in log_result.endpoint_records
     }
     discovered: set[str] = set(log_by_tmpl.keys())
     documented: set[str] = spec_result.path_templates
-
-    # ── OK: exact intersection ─────────────────────────────────────────────
     exact_ok = discovered & documented
     for tmpl in sorted(exact_ok):
         result.ok.append(OkEndpoint(
@@ -239,8 +210,6 @@ def diff(
             log_record    = log_by_tmpl[tmpl],
             spec_endpoint = spec_result.documented_paths[tmpl],
         ))
-
-    # ── Candidates for Shadow or Fuzzy ────────────────────────────────────
     undecided = discovered - documented
     for tmpl in sorted(undecided):
         spec_ep = _find_fuzzy_spec_match(tmpl, spec_result)
@@ -256,9 +225,6 @@ def diff(
                 path_template = tmpl,
                 log_record    = log_by_tmpl[tmpl],
             ))
-
-    # ── Dormant: in spec but not in logs at all ────────────────────────────
-    # Also account for fuzzy-reconciled templates (they count as "seen")
     fuzzy_spec_templates = {fm.spec_template for fm in result.fuzzy_reconciled}
     seen_spec_templates  = exact_ok | fuzzy_spec_templates
     dormant_tmpls        = documented - seen_spec_templates
@@ -268,17 +234,9 @@ def diff(
             path_template = tmpl,
             spec_endpoint = spec_result.documented_paths[tmpl],
         ))
-
-    # Sort Shadow by hit count descending (highest-traffic shadows first)
     result.shadow.sort(key=lambda s: s.log_record.hit_count, reverse=True)
 
     return result
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# __main__
-# ─────────────────────────────────────────────────────────────────────────────
-
 if __name__ == "__main__":
     import argparse as ap
     import sys
@@ -306,8 +264,6 @@ if __name__ == "__main__":
         print(f"  OK (expected traffic): {len(result.ok)}")
         print(f"  Fuzzy-reconciled     : {len(result.fuzzy_reconciled)}")
         print()
-
-        # Shadow endpoints
         print(f"  {'SHADOW ENDPOINTS':} ({len(result.shadow)}) — undocumented, active traffic")
         print(SEP_THIN)
         if result.shadow:
@@ -324,8 +280,6 @@ if __name__ == "__main__":
                 print()
         else:
             print("  (none)\n")
-
-        # Dormant endpoints
         print(f"  DORMANT ENDPOINTS ({len(result.dormant)}) — in spec, zero traffic")
         print(SEP_THIN)
         if result.dormant:
@@ -337,8 +291,6 @@ if __name__ == "__main__":
                 print()
         else:
             print("  (none)\n")
-
-        # OK
         print(f"  OK — EXPECTED TRAFFIC ({len(result.ok)})")
         print(SEP_THIN)
         for o in result.ok:
@@ -347,8 +299,6 @@ if __name__ == "__main__":
             methods = ",".join(sorted(o.log_record.methods_seen))
             print(f"    {o.path_template:<50}  hits={hits:<4}  security={sec}")
         print()
-
-        # Fuzzy
         if result.fuzzy_reconciled:
             print(f"  FUZZY-RECONCILED ({len(result.fuzzy_reconciled)})")
             print(SEP_THIN)
@@ -356,8 +306,6 @@ if __name__ == "__main__":
                 print(f"     discovered: {fm.discovered_template}")
                 print(f"      spec:       {fm.spec_template}  (placeholder name differed)")
             print()
-
-    # ── RUN 1: Real fixture ────────────────────────────────────────────────
     print(SEP_THICK)
     print("  LOADING REAL FIXTURE")
     print(SEP_THICK)
@@ -369,8 +317,6 @@ if __name__ == "__main__":
 
     real_diff = diff(log_result, spec_result)
     print_diff_report(real_diff, "RUN 1: Real fixture (expect Shadow=5, Dormant=0, OK=4)")
-
-    # Verify expected outcomes
     expected_shadow = {
         "/api/v1/patient-records/{id}",
         "/api/v1/internal/debug/patient/{id}",
@@ -395,15 +341,11 @@ if __name__ == "__main__":
     assert len(real_diff.dormant) == 0, "Expected 0 dormant endpoints in real fixture"
     print("     Dormant set is empty (all 4 documented endpoints got traffic)")
     print()
-
-    # ── RUN 2: Synthetic dormant test ─────────────────────────────────────
     print(SEP_THICK)
     print("  RUN 2: Synthetic dormant test")
     print("  (Removing /api/v1/doctors/{id} from discovered set)")
     print(SEP_THICK)
     print()
-
-    # Build a ParseResult with /doctors/{id} dropped
     import dataclasses
     reduced_records = [r for r in log_result.endpoint_records
                        if r.path_template != "/api/v1/doctors/{id}"]
@@ -421,21 +363,16 @@ if __name__ == "__main__":
         f"Wrong dormant endpoint: {synthetic_diff.dormant[0].path_template}"
     print("     Dormant detection works: /api/v1/doctors/{id} correctly flagged as dormant")
     print()
-
-    # ── RUN 3: Fuzzy match test ────────────────────────────────────────────
     print(SEP_THICK)
     print("  RUN 3: Fuzzy-match test")
     print("  (Spec uses {patientId}/{doctorId}; logs normalise to {id})")
     print("  Expected: NO shadow endpoints from naming mismatch alone")
     print(SEP_THICK)
     print()
-
-    # Build a synthetic SpecResult with descriptive placeholder names
     from scanner.spec_loader import SpecEndpoint as SE, OperationMeta
     from copy import deepcopy
 
     fuzzy_spec = deepcopy(spec_result)
-    # Replace /api/v1/patients/{id} with /api/v1/patients/{patientId}
     old_ep = fuzzy_spec.documented_paths.pop("/api/v1/patients/{id}", None)
     old_ep2 = fuzzy_spec.documented_paths.pop("/api/v1/doctors/{id}", None)
     if old_ep:

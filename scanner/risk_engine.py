@@ -94,12 +94,6 @@ class ProbeStatus:
                 f"mid-scan (ConnectionError/Timeout). Findings may be incomplete."
             )
         return f"{self.probes_succeeded}/{self.probes_attempted} active probe(s) completed successfully."
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Startup health-check
-# ─────────────────────────────────────────────────────────────────────────────
-
 PROBE_TIMEOUT = 3   # seconds for the startup health-check ping
 ACTIVE_TIMEOUT = 2  # seconds for each individual BOLA probe request
 
@@ -122,7 +116,6 @@ def probe_server_health(mock_server_url: str, timeout: int = PROBE_TIMEOUT) -> P
     health_url = f"{mock_server_url.rstrip('/')}/api/v1/health"
     try:
         resp = requests.get(health_url, timeout=timeout)
-        # Any HTTP response means the server is up
         return ProbeStatus(reachable=True, probe_url=health_url)
     except requests.exceptions.ConnectionError as exc:
         return ProbeStatus(
@@ -154,12 +147,8 @@ def _check_shadow(endpoint: ShadowEndpoint) -> Optional[Finding]:
 
 def _check_sensitive_path(path_template: str, log_record: EndpointRecord) -> Optional[Finding]:
     sensitive_keywords = ["patient", "ehr", "aadhaar", "abha", "otp", "prescription", "diagnosis", "insurance", "report"]
-    
-    # Check template
     path_lower = path_template.lower()
     found = [kw for kw in sensitive_keywords if kw in path_lower]
-    
-    # Check sample raw paths (for query strings)
     for raw in log_record.sample_raw_paths:
         raw_lower = raw.lower()
         found.extend([kw for kw in sensitive_keywords if kw in raw_lower and kw not in found])
@@ -178,12 +167,9 @@ def _check_missing_auth(log_record: EndpointRecord, requires_auth: bool) -> Opti
         return None
         
     if not requires_auth and log_record.never_authenticated:
-        # It's a public endpoint and it's never authenticated. This is expected.
         return None
         
     if log_record.never_authenticated:
-        # If it's never authenticated, but the spec says it requires auth -> HIGH
-        # If it's a shadow endpoint (requires_auth doesn't strictly apply, but we assume sensitive APIs need auth)
         return Finding(
             category="API2:2023 Broken Authentication",
             severity="HIGH" if requires_auth else "MEDIUM",
@@ -198,22 +184,6 @@ def _check_missing_auth(log_record: EndpointRecord, requires_auth: bool) -> Opti
             description=f"Endpoint sometimes accepts requests without authentication ({log_record.auth_absent_count} unauthenticated requests).",
         )
     return None
-
-# ── Structural ownership-scope detection ─────────────────────────────────────
-#
-# DESIGN: Rather than maintaining an application-specific allowlist of resource
-# keywords, we detect ownership-scoping STRUCTURALLY: any endpoint whose path
-# contains a numeric ID or UUID is presumed to be a per-object resource unless
-# it is explicitly excluded below.
-#
-# This generalises to any application vocabulary (vehicle/{uuid}, order/{id},
-# etc.) without requiring source-code changes for each new domain.
-#
-# The EXCLUSION LIST below covers near-universal public reference/lookup
-# resources that structurally contain IDs but have no meaningful per-user
-# ownership concept.  It is a best-effort default — extend via
-# --exclude-from-bola on the CLI rather than editing this constant.
-
 _PUBLIC_REFERENCE_RESOURCES: frozenset[str] = frozenset({
     "doctor",      # /doctors/{id} — public directory
     "product",     # /products/{id} — public catalogue
@@ -224,10 +194,6 @@ _PUBLIC_REFERENCE_RESOURCES: frozenset[str] = frozenset({
     "status",      # /status — readiness probe
     "ping",        # /ping
 })
-
-# Regex patterns for recognising instance-ID segments in a path.
-# Both numeric IDs (/patients/111) and UUIDs (/vehicle/fadcf145-.../location)
-# are treated as ownership signals.
 _NUMERIC_ID_IN_PATH = re.compile(r'/(\d+)(?:/|$)')
 _UUID_IN_PATH       = re.compile(
     r'/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:/|$)',
@@ -254,7 +220,6 @@ def _is_ownership_scoped(
     extra_exclusions : additional resource keywords to exclude, supplied at
                        runtime via --exclude-from-bola
     """
-    # Structural check: path must contain a numeric ID or UUID placeholder
     has_id = (
         "{id}" in path_template
         or _NUMERIC_ID_IN_PATH.search(path_template) is not None
@@ -262,18 +227,12 @@ def _is_ownership_scoped(
     )
     if not has_id:
         return False
-
-    # Exclusion check: any segment word matches a public-reference keyword
     all_exclusions = _PUBLIC_REFERENCE_RESOURCES | extra_exclusions
     path_lower = path_template.lower()
     if any(kw in path_lower for kw in all_exclusions):
         return False
 
     return True
-
-
-# ── ID extraction helpers ─────────────────────────────────────────────────────
-
 def _extract_id_segment(raw_path: str) -> tuple[str, str] | None:
     """
     Extract the first ownership-identifying segment from a concrete raw path.
@@ -283,7 +242,6 @@ def _extract_id_segment(raw_path: str) -> tuple[str, str] | None:
     Numeric: /patients/111/insurance-claims  → ('111', 'numeric')
     UUID:    /vehicle/fadcf145-.../location  → ('fadcf145-...', 'uuid')
     """
-    # UUID takes priority (more specific pattern)
     m = _UUID_IN_PATH.search(raw_path)
     if m:
         return (m.group(1), 'uuid')
@@ -313,7 +271,6 @@ def _build_cross_user_pairs(
     If insufficient data exists, an empty list is returned and the
     reason is logged explicitly.
     """
-    # Gather all entries that have: a token subject AND an ID in the path
     entries_with_id: list[tuple[str, str, str, str]] = []  # (sub, raw_path, id_str, id_type, token)
     for entry in log_record.raw_entries:
         if not entry.token:
@@ -322,7 +279,6 @@ def _build_cross_user_pairs(
         if not extracted:
             continue
         id_str, id_type = extracted
-        # Decode the JWT subject without verifying the signature
         sub = _jwt_subject(entry.token)
         if not sub:
             continue
@@ -335,8 +291,6 @@ def _build_cross_user_pairs(
             log_record.path_template,
         )
         return []
-
-    # Group by subject → pick one representative path+id per subject
     by_subject: dict[str, tuple[str, str, str, str]] = {}  # sub → (raw_path, id_str, id_type, token)
     for sub, raw_path, id_str, id_type, token in entries_with_id:
         if sub not in by_subject:
@@ -351,15 +305,10 @@ def _build_cross_user_pairs(
             next(iter(by_subject)),
         )
         return []
-
-    # Build cross-user probe pairs:
-    # For each subject, probe their object using every OTHER subject's token.
-    # In practice for most endpoints we'll have exactly 2 subjects → 2 pairs.
     subjects = list(by_subject.keys())
     pairs: list[tuple[str, str, str, str]] = []
     for i, victim_sub in enumerate(subjects):
         victim_path, victim_id, id_type, _ = by_subject[victim_sub]
-        # Use the next subject's token as the attacker token
         attacker_sub = subjects[(i + 1) % len(subjects)]
         attacker_token = by_subject[attacker_sub][3]
         pairs.append((victim_path, victim_id, attacker_token, id_type))
@@ -383,10 +332,6 @@ def _jwt_subject(token_str: str) -> str:
         return decoded.get("sub", "")
     except Exception:
         return ""
-
-
-# ── Fallback numeric probe (for mock server with sequential IDs) ──────────────
-
 def _numeric_probe_pairs(
     log_record: EndpointRecord,
     fallback_token: str,
@@ -438,23 +383,13 @@ def _check_bola_and_exposure(
     all network exceptions are counted in probe_status.probes_failed.
     """
     findings: list[Finding] = []
-
-    # Guard: skip entirely if no URL or server failed health-check
     if not mock_server_url:
         return findings
     if probe_status is not None and not probe_status.reachable:
         return findings
-
-    # Structural gate: skip if endpoint is not ownership-scoped
     if path_template and not _is_ownership_scoped(path_template, extra_exclusions):
         return findings
-
-    # ── Build probe pairs ─────────────────────────────────────────────────
-    # Preferred: cross-user pairs derived from real log token subjects
     pairs = _build_cross_user_pairs(log_record)
-
-    # Fallback: for numeric-ID endpoints lacking two distinct users in the log,
-    # use id±1 with the mock server's fixed test token.
     if not pairs:
         FALLBACK_TOKEN = "Bearer token-patient-101"
         pairs = _numeric_probe_pairs(log_record, FALLBACK_TOKEN)
@@ -471,12 +406,8 @@ def _check_bola_and_exposure(
             path_template,
         )
         return findings
-
-    # ── Fire probes ───────────────────────────────────────────────────────
     for victim_path, victim_id, attacker_token, id_type in pairs:
         test_url = f"{mock_server_url.rstrip('/')}{victim_path}"
-
-        # ── Test 1: Unauthenticated ────────────────────────────────────────
         if probe_status is not None:
             probe_status.probes_attempted += 1
         try:
@@ -511,8 +442,6 @@ def _check_bola_and_exposure(
                 test_url, exc.__class__.__name__,
             )
             return findings
-
-        # ── Test 2: Wrong-owner token ──────────────────────────────────────
         if probe_status is not None:
             probe_status.probes_attempted += 1
         try:
@@ -569,25 +498,16 @@ def _check_pii_exposure(data: dict, findings: list[Finding]):
             description=f"Response payload contains highly sensitive PII fields: {', '.join(found_pii)}",
             evidence={"keys_found": found_pii, "response_sample": str(data)[:200]}
         ))
-
-# Path patterns that are exempt from the rate-limiting heuristic.  High-frequency
-# polling of these endpoints is expected correct behaviour, not a vulnerability.
 _RATE_LIMIT_EXEMPT_KEYWORDS = {"health", "status", "ping", "ready", "live"}
 
 
 def _check_rate_limiting(log_record: EndpointRecord, is_public_endpoint: bool = False,
                           path_template: str = "") -> Optional[Finding]:
-    # BUG 2 FIX: Skip rate-limit check for endpoints that are explicitly declared
-    # public in the spec (security: []) OR whose path contains well-known
-    # health-check / readiness-probe keywords.  High-frequency polling of these
-    # endpoints is expected and correct, not a vulnerability.
     if is_public_endpoint:
         return None
     path_lower = path_template.lower()
     if any(kw in path_lower for kw in _RATE_LIMIT_EXEMPT_KEYWORDS):
         return None
-
-    # Group by IP and time_local (second resolution) AND just IP for sustained bursts
     bursts_per_sec: dict = defaultdict(int)
     total_per_ip: dict = defaultdict(int)
 
@@ -608,11 +528,6 @@ def _check_rate_limiting(log_record: EndpointRecord, is_public_endpoint: bool = 
         if count > max_total:
             max_total = count
             max_total_ip = ip
-
-    # Heuristics:
-    # 1. >10 requests in the SAME second is an automated burst.
-    # 2. >30 total requests to a single endpoint from one IP without any 429s
-    #    is a sustained brute-force / scrape pattern.
     is_burst = max_sec_burst > 10
     is_brute_force = max_total > 30
 
@@ -657,8 +572,6 @@ def _check_method_mismatch(endpoint: OkEndpoint) -> Optional[Finding]:
     return None
 
 def _check_shadow_method_mismatch(endpoint: ShadowEndpoint, spec_result: SpecResult) -> Optional[Finding]:
-    # Check if the shadow endpoint's base path (without {id}) is documented
-    # e.g., /api/v1/appointments/{id} shadow, but /api/v1/appointments is documented
     parts = endpoint.path_template.split('/')
     if len(parts) > 1 and parts[-1] == '{id}':
         base_path = '/'.join(parts[:-1])
@@ -691,8 +604,6 @@ def run_risk_engine(
         If None (backwards-compat / passive mode), probes are skipped.
     """
     results: dict[str, list[Finding]] = defaultdict(list)
-    
-    # Check Shadow endpoints
     for shadow in diff_result.shadow:
         tmpl = shadow.path_template
         lr = shadow.log_record
@@ -705,13 +616,8 @@ def run_risk_engine(
 
         f = _check_sensitive_path(tmpl, lr)
         if f: results[tmpl].append(f)
-
-        # Shadow endpoints are never in the spec, so they have no declared public
-        # status — treat them as requiring auth for the missing-auth check.
         f = _check_missing_auth(lr, requires_auth=True)
         if f: results[tmpl].append(f)
-
-        # Shadow endpoints are not declared public in the spec; pass is_public=False.
         f = _check_rate_limiting(lr, is_public_endpoint=False, path_template=tmpl)
         if f: results[tmpl].append(f)
 
@@ -720,8 +626,6 @@ def run_risk_engine(
             probe_status=probe_status, extra_exclusions=exclude_from_bola,
         )
         results[tmpl].extend(findings)
-        
-    # Check OK (documented) endpoints
     for ok in diff_result.ok:
         tmpl = ok.path_template
         lr = ok.log_record
@@ -736,20 +640,13 @@ def run_risk_engine(
 
         f = _check_missing_auth(lr, requires_auth)
         if f: results[tmpl].append(f)
-
-        # Pass spec-declared public status and path so health/status endpoints are
-        # excluded from the rate-limit heuristic (Bug 2 fix).
         f = _check_rate_limiting(lr, is_public_endpoint=is_public, path_template=tmpl)
         if f: results[tmpl].append(f)
-
-        # Pass path_template and exclusions to the ownership-scope gate.
         findings = _check_bola_and_exposure(
             lr, mock_server_url, path_template=tmpl,
             probe_status=probe_status, extra_exclusions=exclude_from_bola,
         )
         results[tmpl].extend(findings)
-
-    # Fuzzy-reconciled endpoints are treated like OK endpoints for risk purposes.
     for fuzzy in diff_result.fuzzy_reconciled:
         tmpl = fuzzy.discovered_template
         lr = fuzzy.log_record
@@ -807,8 +704,6 @@ if __name__ == "__main__":
     
     import json
     import dataclasses
-    
-    # Convert dataclasses to dicts for JSON serialization
     json_output = {
         endpoint: [dataclasses.asdict(f) for f in findings]
         for endpoint, findings in risk_results.items()

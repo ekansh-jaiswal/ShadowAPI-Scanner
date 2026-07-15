@@ -43,12 +43,6 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Nginx combined log regex
-# Format: $remote_addr - $remote_user [$time_local] "$request"
-#          $status $body_bytes_sent "$http_referer" "$http_user_agent"
-# ─────────────────────────────────────────────────────────────────────────────
 _NGINX_RE = re.compile(
     r'^(?P<remote_addr>\S+)'          # source IP
     r' - '
@@ -62,28 +56,16 @@ _NGINX_RE = re.compile(
     r'"(?P<referer>[^"]*)" '          # referer
     r'"(?P<user_agent>[^"]*)"'        # user agent
 )
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Path normalisation patterns (applied in order)
-# ─────────────────────────────────────────────────────────────────────────────
 _UUID_RE = re.compile(
     r'(?<=/)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=/|$)',
     re.IGNORECASE,
 )
 _NUMERIC_RE    = re.compile(r'(?<=/)\d+(?=/|$)')
 _HEX_TOKEN_RE  = re.compile(r'(?<=/)[0-9a-f]{8,}(?=/|$)', re.IGNORECASE)
-# Opaque token: long alnum-only run (no hyphens — those indicate human-readable
-# slugs like 'insurance-claims', not tokens).  Underscore allowed (base64url).
 _B64_TOKEN_RE  = re.compile(r'(?<=/)[A-Za-z0-9_]{16,}(?=/|$)')
 
 _MAX_SAMPLE_PATHS  = 5    # raw path samples kept per template (for report evidence)
 _MAX_SAMPLE_TOKENS = 10   # unique token values kept per template
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Data classes
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class RawEntry:
     """One parsed line from the two log files, before aggregation."""
@@ -97,7 +79,6 @@ class RawEntry:
     status:       int
     bytes_sent:   int
     user_agent:   str
-    # From access_headers.log (None if file not available)
     has_auth:     Optional[bool]    = None
     token:        Optional[str]     = None
     token_owner:  Optional[str]     = None
@@ -114,16 +95,11 @@ class EndpointRecord:
     hit_count:          int                    = 0
     status_codes:       Counter                = field(default_factory=Counter)
     source_ips:         set[str]               = field(default_factory=set)
-    # Evidence for the report
     sample_raw_paths:   list[str]              = field(default_factory=list)
     sample_tokens:      list[str]              = field(default_factory=list)
-    # Auth-presence stats (populated only when headers log is available)
     auth_present_count: int                    = 0
     auth_absent_count:  int                    = 0
-    # All raw entries (risk engine reads these for per-request analysis)
     raw_entries:        list[RawEntry]         = field(default_factory=list)
-
-    # Convenience properties
     @property
     def auth_coverage(self) -> str:
         """Human-readable auth coverage string, e.g. '108/124 had auth'."""
@@ -152,12 +128,6 @@ class ParseResult:
     total_lines:       int
     parse_errors:      int
     header_log_joined: bool                         # True if JSONL file was merged
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Core normalisation
-# ─────────────────────────────────────────────────────────────────────────────
-
 def normalise_path(path: str) -> str:
     """
     Convert a concrete path into a parameterised template.
@@ -178,12 +148,6 @@ def normalise_path(path: str) -> str:
     p = _HEX_TOKEN_RE.sub("{id}", p)
     p = _B64_TOKEN_RE.sub("{id}", p)
     return p
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Parsing helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _parse_access_log(path: Path) -> tuple[list[RawEntry], int]:
     """
     Parse Nginx combined-format access.log.
@@ -281,7 +245,6 @@ def _merge_headers(entries: list[RawEntry], header_records: list[dict]) -> None:
     n_headers = len(header_records)
 
     if n_access != n_headers:
-        # Find first divergence point for actionable diagnostics
         diverge_at = min(n_access, n_headers)  # both agree up to this index
         shorter    = "access.log" if n_access < n_headers else "access_headers.log"
         longer     = "access_headers.log" if n_access < n_headers else "access.log"
@@ -295,21 +258,10 @@ def _merge_headers(entries: list[RawEntry], header_records: list[dict]) -> None:
             f"  Fix: re-run  python mock_env/generate_logs.py  to regenerate both files,\n"
             f"       or call parse_logs(..., headers_log_path=None) to skip auth merging."
         )
-
-    # Fast path — guaranteed positional alignment
     for entry, hrec in zip(entries, header_records):
         entry.has_auth    = hrec.get("has_authorization", False)
         entry.token       = hrec.get("token")
         entry.token_owner = hrec.get("token_owner")
-
-
-
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Aggregation
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _aggregate(entries: list[RawEntry]) -> dict[str, EndpointRecord]:
     """Group RawEntry objects by path template, building EndpointRecord for each."""
     agg: dict[str, EndpointRecord] = {}
@@ -328,18 +280,13 @@ def _aggregate(entries: list[RawEntry]) -> dict[str, EndpointRecord]:
         rec.status_codes[entry.status] += 1
         rec.source_ips.add(entry.source_ip)
         rec.raw_entries.append(entry)
-
-        # Sample raw paths (store query string too for OTP/search endpoints)
         raw = entry.raw_path
         if raw not in seen_raw_paths[tmpl] and len(rec.sample_raw_paths) < _MAX_SAMPLE_PATHS:
             seen_raw_paths[tmpl].add(raw)
             rec.sample_raw_paths.append(raw)
-
-        # Auth stats
         if entry.has_auth is not None:
             if entry.has_auth:
                 rec.auth_present_count += 1
-                # Sample tokens
                 if entry.token and entry.token not in seen_tokens[tmpl] \
                         and len(rec.sample_tokens) < _MAX_SAMPLE_TOKENS:
                     seen_tokens[tmpl].add(entry.token)
@@ -348,12 +295,6 @@ def _aggregate(entries: list[RawEntry]) -> dict[str, EndpointRecord]:
                 rec.auth_absent_count += 1
 
     return agg
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Public API
-# ─────────────────────────────────────────────────────────────────────────────
-
 def parse_logs(
     access_log_path: str | Path,
     headers_log_path: Optional[str | Path] = None,
@@ -386,8 +327,6 @@ def parse_logs(
             joined = True
 
     by_template = _aggregate(entries)
-
-    # Sort by hit count descending for report ordering
     sorted_records = sorted(by_template.values(), key=lambda r: r.hit_count, reverse=True)
 
     return ParseResult(
@@ -397,12 +336,6 @@ def parse_logs(
         parse_errors      = errors,
         header_log_joined = joined,
     )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# __main__ — sanity-check against the generated logs
-# ─────────────────────────────────────────────────────────────────────────────
-
 if __name__ == "__main__":
     import argparse as ap
 
@@ -424,8 +357,6 @@ if __name__ == "__main__":
     print(f"Header log joined  : {result.header_log_joined}")
     print(f"Unique templates   : {len(result.endpoint_records)}")
     print()
-
-    # ── Normalisation spot-check ───────────────────────────────────────────
     test_cases = [
         ("/api/v1/patients/104",                    "/api/v1/patients/{id}"),
         ("/api/v1/patient-records/115",             "/api/v1/patient-records/{id}"),
@@ -447,8 +378,6 @@ if __name__ == "__main__":
         print(f"  {status}  {raw:<50}  →  {got}")
     print(f"  {'All pass ✅' if all_ok else 'FAILURES ABOVE ❌'}")
     print()
-
-    # ── Summary table ──────────────────────────────────────────────────────
     COL_W = 50
     H1 = f"{'PATH TEMPLATE':<{COL_W}} {'HITS':>5}  {'METHODS':<20}  {'STATUS CODES':<30}  AUTH"
     print("=" * (len(H1) + 2))
@@ -459,22 +388,14 @@ if __name__ == "__main__":
         methods   = ",".join(sorted(rec.methods_seen))
         statuses  = "  ".join(f"{k}×{v}" for k, v in sorted(rec.status_codes.items()))
         auth_info = rec.auth_coverage
-
-        # First line: template + counts
         print(f"{rec.path_template:<{COL_W}} {rec.hit_count:>5}  {methods:<20}  {statuses:<30}  {auth_info}")
-
-        # Second line: sample raw paths (indented)
         for sp in rec.sample_raw_paths[:2]:
             print(f"  {'':>{COL_W-2}}  sample: {sp}")
-
-        # Third line: source IPs (abbreviated)
         ips = ", ".join(sorted(rec.source_ips)[:4])
         if len(rec.source_ips) > 4:
             ips += f" … (+{len(rec.source_ips)-4} more)"
         print(f"  {'':>{COL_W-2}}  IPs: {ips}")
         print()
-
-    # ── Auth-absent highlights ─────────────────────────────────────────────
     print("=" * (len(H1) + 2))
     print("ENDPOINTS WITH MISSING AUTH (any requests lacking Authorization header):")
     print("=" * (len(H1) + 2))

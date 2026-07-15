@@ -31,23 +31,8 @@ from pathlib import Path
 from typing import Optional
 
 import yaml  # pyyaml
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Constants
-# ─────────────────────────────────────────────────────────────────────────────
-
-# All standard OpenAPI operation keywords (HTTP verbs used as path-item keys)
 _HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "trace"}
-
-# Normalise any {paramName} placeholder to {id} so spec templates and log
-# templates are comparable even when the spec uses descriptive names.
 _PARAM_RE = re.compile(r'\{[^}]+\}')
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Data classes
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class OperationMeta:
     """Metadata for one (path, method) pair in the spec."""
@@ -107,12 +92,6 @@ class SpecResult:
     title:            str
     api_version:      str
     global_security:  list                       # top-level security: block (if any)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _normalise_path_template(raw_path: str) -> str:
     """
     Collapse all {paramName} placeholders to {id}.
@@ -143,15 +122,12 @@ def _resolve_security(
     raw: Optional[list] = op_security  # may be None (key absent), or [] or [{...}]
 
     if raw is None:
-        # Key absent on the operation — fall back to global
         if not global_security:
             return "undeclared", []
         raw = global_security
 
     if raw == []:
         return "public", []
-
-    # Extract scheme names from [{schemeName: []}] structure
     schemes = []
     for entry in raw:
         if isinstance(entry, dict):
@@ -159,12 +135,6 @@ def _resolve_security(
 
     label = schemes[0] if len(schemes) == 1 else ("mixed" if schemes else "undeclared")
     return label, raw
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Public API
-# ─────────────────────────────────────────────────────────────────────────────
-
 def load_spec(spec_path: str | Path) -> SpecResult:
     """
     Parse an OpenAPI 3.0 YAML/JSON file and return a SpecResult.
@@ -187,8 +157,6 @@ def load_spec(spec_path: str | Path) -> SpecResult:
         raise FileNotFoundError(f"OpenAPI spec not found: {spec_path}")
 
     raw_text = spec_path.read_text(encoding="utf-8")
-
-    # Support both YAML and JSON
     try:
         if spec_path.suffix.lower() in (".yaml", ".yml"):
             spec_dict = yaml.safe_load(raw_text)
@@ -202,15 +170,11 @@ def load_spec(spec_path: str | Path) -> SpecResult:
 
     if "paths" not in spec_dict:
         raise ValueError(f"Spec file {spec_path} has no 'paths' key")
-
-    # Extract top-level metadata
     info            = spec_dict.get("info", {})
     spec_version    = spec_dict.get("openapi", "unknown")
     title           = info.get("title", "")
     api_version     = info.get("version", "")
     global_security = spec_dict.get("security", []) or []
-
-    # Parse paths
     documented_paths: dict[str, SpecEndpoint] = {}
 
     for raw_path, path_item in spec_dict["paths"].items():
@@ -248,12 +212,6 @@ def load_spec(spec_path: str | Path) -> SpecResult:
         api_version      = api_version,
         global_security  = global_security,
     )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# __main__ — sanity-check against openapi_spec.yaml
-# ─────────────────────────────────────────────────────────────────────────────
-
 if __name__ == "__main__":
     import argparse as ap
 
@@ -272,15 +230,11 @@ if __name__ == "__main__":
     print(f"Global sec  : {result.global_security or '(none)'}")
     print(f"Paths found : {len(result.documented_paths)}")
     print()
-
-    # ── Normalisation spot-check ───────────────────────────────────────────
-    # These are the actual raw paths in the spec — verify they map correctly
     raw_to_expected = {
         "/api/v1/health":                "/api/v1/health",
         "/api/v1/patients/{id}":         "/api/v1/patients/{id}",
         "/api/v1/appointments":          "/api/v1/appointments",
         "/api/v1/doctors/{id}":          "/api/v1/doctors/{id}",
-        # Hypothetical — if spec used descriptive names
         "/api/v1/patients/{patientId}":  "/api/v1/patients/{id}",
         "/api/v1/doctors/{doctorId}":    "/api/v1/doctors/{id}",
     }
@@ -294,8 +248,6 @@ if __name__ == "__main__":
         print(f"  {'✅' if ok else '❌'}  {raw:<45} → {got}")
     print(f"  {'All pass ✅' if all_ok else 'FAILURES ABOVE ❌'}")
     print()
-
-    # ── Summary table ──────────────────────────────────────────────────────
     COL_PATH = 42
     COL_RAW  = 42
     HDR = (f"{'TEMPLATE (normalised)':<{COL_PATH}}  {'METHODS':<12}  "
@@ -309,8 +261,6 @@ if __name__ == "__main__":
         sec      = ep.security_label
         op_ids   = ", ".join(op.operation_id or "(none)" for op in ep.operations)
         print(f"{tmpl:<{COL_PATH}}  {methods:<12}  {sec:<12}  {ep.raw_path:<{COL_RAW}}  {op_ids}")
-
-        # Per-method security detail (important if mixed)
         for op in ep.operations:
             auth_marker = {
                 "public":      " public (no auth)",

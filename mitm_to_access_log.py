@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Converts a real mitmproxy capture (.mitm flow file) into the Nginx
 combined-log format and companion auth-headers JSONL format that
@@ -50,7 +49,6 @@ def main():
 
         reader = FlowReader(f)
         for flow in reader.stream():
-            # Only process HTTP flows with a completed response
             if not hasattr(flow, "request") or flow.response is None:
                 skipped += 1
                 continue

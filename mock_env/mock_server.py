@@ -28,11 +28,6 @@ import json
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
-
-# ---------------------------------------------------------------------------
-# Fake in-memory "database" – 15 patients with clearly fictional data
-# NOTE: aadhaar numbers are deliberately NOT checksum-valid – pure demo data.
-# ---------------------------------------------------------------------------
 PATIENTS: dict[int, dict] = {
     101: {
         "id": 101,
@@ -298,8 +293,6 @@ APPOINTMENTS: dict[int, dict] = {
     1002: {"id": 1002, "patient_id": 102, "doctor_id": 4, "date": "2026-07-11", "slot": "14:30", "status": "confirmed"},
     1003: {"id": 1003, "patient_id": 104, "doctor_id": 2, "date": "2026-07-12", "slot": "09:00", "status": "pending"},
 }
-
-# Valid test tokens – purely fictional, no real auth backend
 VALID_TOKENS = {
     "token-patient-101": 101,
     "token-patient-102": 102,
@@ -309,8 +302,6 @@ VALID_TOKENS = {
     "token-doctor-1": None,  # doctor tokens have no patient ID
     "token-admin-99": None,
 }
-
-# OTP store: patient_id -> correct OTP (fictional, for brute-force demo)
 OTP_STORE: dict[str, str] = {
     "101": "482915",
     "102": "739204",
@@ -318,11 +309,6 @@ OTP_STORE: dict[str, str] = {
     "104": "924561",
     "105": "371082",
 }
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Helper: extract and validate Bearer token
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _get_token() -> str | None:
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
@@ -336,12 +322,6 @@ def _require_auth():
     if not token or token not in VALID_TOKENS:
         return None, None, (jsonify({"error": "Unauthorized", "code": 401}), 401)
     return token, VALID_TOKENS[token], None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# DOCUMENTED ENDPOINTS
-# ─────────────────────────────────────────────────────────────────────────────
-
 @app.route("/api/v1/health", methods=["GET"])
 def health_check():
     """Public health check – no auth required."""
@@ -366,8 +346,6 @@ def get_patient(patient_id: int):
     patient = PATIENTS.get(patient_id)
     if not patient:
         return jsonify({"error": "Patient not found", "code": 404}), 404
-
-    # Return only the safe, minimal fields
     return jsonify({
         "id": patient["id"],
         "name": patient["name"],
@@ -413,12 +391,6 @@ def get_doctor(doctor_id: int):
     if not doctor:
         return jsonify({"error": "Doctor not found", "code": 404}), 404
     return jsonify(doctor)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SHADOW / UNDOCUMENTED ENDPOINTS  (scanner should discover all of these)
-# ─────────────────────────────────────────────────────────────────────────────
-
 @app.route("/api/v1/patient-records/<int:patient_id>", methods=["GET"])
 def get_patient_record_legacy(patient_id: int):
     """
@@ -428,18 +400,13 @@ def get_patient_record_legacy(patient_id: int):
     FULL record including aadhaar_number, diagnosis, prescription.
     This is the flagship BOLA demo endpoint.
     """
-    # Intentionally weak: we accept any token or even no token for demo realism
-    # (in practice a real broken endpoint would require some auth but skip ownership)
     token = _get_token()
-    # Deliberately: no ownership verification at all
     if not token or token not in VALID_TOKENS:
         return jsonify({"error": "Unauthorized", "code": 401}), 401
 
     patient = PATIENTS.get(patient_id)
     if not patient:
         return jsonify({"error": "Patient record not found", "code": 404}), 404
-
-    # Returns EVERYTHING – the BOLA vulnerability: any token can read any record
     return jsonify({
         "id": patient["id"],
         "name": patient["name"],
@@ -464,8 +431,6 @@ def debug_patient(patient_id: int):
     patient = PATIENTS.get(patient_id)
     if not patient:
         return jsonify({"error": "Not found", "code": 404}), 404
-
-    # Returns the complete dict – everything including internal_notes, ssn, etc.
     return jsonify(patient)
 
 
@@ -538,12 +503,6 @@ def verify_otp():
         })
     else:
         return jsonify({"status": "invalid", "message": "Incorrect OTP"}), 401
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Startup
-# ─────────────────────────────────────────────────────────────────────────────
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SwasthyaConnect Mock API Server")
     parser.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")

@@ -41,12 +41,6 @@ except ModuleNotFoundError:
     from scanner.diff_engine import DiffResult
     from scanner.spec_loader import SpecResult
     from scanner.risk_engine import Finding
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Remediation map
-# ─────────────────────────────────────────────────────────────────────────────
-
 _REMEDIATION: dict[str, str] = {
     "API1:2023 Broken Object Level Authorization": (
         "Implement server-side object-level authorization checks on every request. "
@@ -81,17 +75,6 @@ _REMEDIATION: dict[str, str] = {
         "so undocumented endpoints are caught at deployment time, not in production."
     ),
 }
-
-# ─────────────────────────────────────────────────────────────────────────────
-# DPDP Act 2023 overlay
-# Maps OWASP API category → relevant DPDP Act section(s).
-#
-# Language policy: all references use "relevant to" / "implicates" / "may warrant
-# review under" — this tool identifies technical findings, not legal violations.
-# A qualified legal or compliance professional should assess actual obligations.
-# Source: Digital Personal Data Protection Act, 2023 (No. 22 of 2023), GoI.
-# ─────────────────────────────────────────────────────────────────────────────
-
 _DPDP_MAP: dict[str, list[dict]] = {
     "API1:2023 Broken Object Level Authorization": [
         {
@@ -201,12 +184,6 @@ _SEVERITY_COLOR = {
     "INFO":     "#6b7280",
     "NONE":     "#d1d5db",
 }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Result dataclass (returned to cli.py for exit-code logic)
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class ReportMeta:
     output_path:          str
@@ -216,12 +193,6 @@ class ReportMeta:
     shadow_count:         int
     critical_count:       int
     gateway_score:        int
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# HTML Template (self-contained — all CSS/JS inline)
-# ─────────────────────────────────────────────────────────────────────────────
-
 _HTML_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -952,15 +923,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </body>
 </html>
 """
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Helper: compute gateway score
-# The gateway score is the MAXIMUM per-endpoint score.  Rationale: a single
-# CRITICAL endpoint (score=100) means the gateway is critically exposed — taking
-# the average would dilute that signal with clean endpoints and misrepresent risk.
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _gateway_score(scored: List[ScoredEndpoint]) -> tuple[int, str]:
     """Returns (score, method_description)."""
     if not scored:
@@ -993,12 +955,6 @@ def _owasp_categories(scored: List[ScoredEndpoint]) -> list[tuple[str, int]]:
         for f in se.findings:
             cat_counter[f.category] += 1
     return sorted(cat_counter.items(), key=lambda x: -x[1])
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Template context helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _build_context(
     scored: List[ScoredEndpoint],
     diff_result: DiffResult,
@@ -1023,8 +979,6 @@ def _build_context(
 
     endpoints_with_findings = sum(1 for se in scored if se.findings)
     highest_sev = _highest_severity(scored)
-
-    # Enrich scored endpoints with display helpers
     log_by_tmpl = {}
     for ok in diff_result.ok:
         log_by_tmpl[ok.path_template] = ok.log_record
@@ -1081,12 +1035,6 @@ def _build_context(
         "dpdp_map":               _DPDP_MAP,
         "highest_severity":      highest_sev,
     }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Public API
-# ─────────────────────────────────────────────────────────────────────────────
-
 def generate_report(
     scored_endpoints: List[ScoredEndpoint],
     diff_result: DiffResult,
@@ -1109,8 +1057,6 @@ def generate_report(
     for use by cli.py's exit-code logic.
     """
     output_path = Path(output_path)
-
-    # Build probe warning context for the template
     probe_warning: str = ""
     if probe_status is not None and not getattr(probe_status, 'reachable', True):
         probe_warning = getattr(probe_status, 'summary_line',
@@ -1139,12 +1085,6 @@ def generate_report(
         critical_count       = ctx["critical_count"],
         gateway_score        = ctx["gateway_score"],
     )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# __main__
-# ─────────────────────────────────────────────────────────────────────────────
-
 if __name__ == "__main__":
     import argparse as ap
     from scanner.log_parser   import parse_logs

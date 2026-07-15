@@ -84,8 +84,6 @@ def score_endpoints(risk_results: Dict[str, List[Finding]]) -> List[ScoredEndpoi
             score=score,
             risk_level=risk_level,
         ))
-
-    # Sort primarily by score (descending), then alphabetically by path
     scored_endpoints.sort(key=lambda x: (-x.score, x.path_template))
     return scored_endpoints
 

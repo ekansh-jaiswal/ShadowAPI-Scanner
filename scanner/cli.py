@@ -29,8 +29,6 @@ import argparse
 import sys
 import traceback
 from pathlib import Path
-
-# Support both `python scanner/cli.py` and `python -m scanner.cli`
 try:
     from scanner.log_parser       import parse_logs
     from scanner.spec_loader      import load_spec
@@ -47,12 +45,6 @@ except ModuleNotFoundError:
     from scanner.risk_engine      import run_risk_engine, probe_server_health, ProbeStatus
     from scanner.scorer           import score_endpoints
     from scanner.report_generator import generate_report
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Severity ordering (for --fail-on threshold comparison)
-# ─────────────────────────────────────────────────────────────────────────────
-
 _SEVERITY_RANK: dict[str, int] = {
     "CRITICAL": 4,
     "HIGH":     3,
@@ -66,12 +58,6 @@ _EXIT_OK       = 0
 _EXIT_FINDINGS = 1
 _EXIT_USAGE    = 2
 _EXIT_ERROR    = 3
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Console helpers (no external deps)
-# ─────────────────────────────────────────────────────────────────────────────
-
 _NO_COLOR = not sys.stdout.isatty()
 
 def _c(text: str, code: str) -> str:
@@ -106,12 +92,6 @@ def _step(n: int, total: int, msg: str) -> None:
 def _ok(msg: str)   -> None: print(f"  {_green('✔')} {msg}", flush=True)
 def _warn(msg: str) -> None: print(f"  {_orange('⚠')} {msg}", flush=True)
 def _err(msg: str)  -> None: print(f"  {_red('✖')} {msg}", file=sys.stderr, flush=True)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Argument parser
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="shadow-scan",
@@ -192,12 +172,6 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     return p
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _resolve_headers_log(log_file: Path, headers_arg: str | None) -> Path | None:
     """
     If --headers-log is not given, look for access_headers.log in the same
@@ -242,12 +216,6 @@ def _should_fail(highest_severity: str, fail_on: set[str]) -> bool:
     """
     found_rank = _SEVERITY_RANK.get(highest_severity.upper(), -1)
     return any(found_rank >= _SEVERITY_RANK.get(f, -1) for f in fail_on)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Main scan pipeline
-# ─────────────────────────────────────────────────────────────────────────────
-
 def run_scan(args: argparse.Namespace) -> int:
     """
     Execute the full scan pipeline and return the process exit code.
@@ -262,8 +230,6 @@ def run_scan(args: argparse.Namespace) -> int:
     def ok(msg: str) -> None:
         if not quiet:
             _ok(msg)
-
-    # ── Validate inputs ───────────────────────────────────────────────────
     log_file = Path(args.log_file)
     if not log_file.exists():
         _err(f"--log-file not found: {log_file}")
@@ -277,8 +243,6 @@ def run_scan(args: argparse.Namespace) -> int:
     headers_log = _resolve_headers_log(log_file, args.headers_log)
     fail_on     = _parse_fail_on(args.fail_on)
     mock_url    = "" if args.no_active_probes else args.mock_server_url.strip()
-
-    # Parse --exclude-from-bola into a frozenset of lowercase keyword strings
     exclude_from_bola: frozenset[str] = frozenset(
         t.strip().lower()
         for t in args.exclude_from_bola.split(",")
@@ -298,8 +262,6 @@ def run_scan(args: argparse.Namespace) -> int:
         if exclude_from_bola:
             print(f"  BOLA excl.: {', '.join(sorted(exclude_from_bola))}")
         print()
-
-    # ── Step 1: Parse logs ────────────────────────────────────────────────
     step(1, "Parsing access logs…")
     try:
         log_result = parse_logs(log_file, headers_log)
@@ -311,8 +273,6 @@ def run_scan(args: argparse.Namespace) -> int:
         f"{len(log_result.endpoint_records)} unique path templates"
         + (f"  ({log_result.parse_errors} parse errors)" if log_result.parse_errors else "")
     )
-
-    # ── Step 2: Load spec ─────────────────────────────────────────────────
     step(2, "Loading OpenAPI spec…")
     try:
         spec_result = load_spec(spec_file)
@@ -323,8 +283,6 @@ def run_scan(args: argparse.Namespace) -> int:
         f"Loaded '{spec_result.title}' v{spec_result.api_version} — "
         f"{len(spec_result.documented_paths)} documented paths"
     )
-
-    # ── Step 3: Diff ──────────────────────────────────────────────────────
     step(3, "Computing shadow/documented diff…")
     try:
         diff_result = diff(log_result, spec_result)
@@ -339,18 +297,11 @@ def run_scan(args: argparse.Namespace) -> int:
         f"{dormant_n} dormant, "
         f"{len(diff_result.ok)} documented OK"
     )
-
-    # ── Step 4: Risk engine ───────────────────────────────────────────────
-    #
-    # Before dispatching any active probes, ping the mock server's health
-    # endpoint.  If it's unreachable we fall back to passive-only and emit
-    # a prominent warning — probes NEVER silently fail and produce findings.
     probe_status: ProbeStatus
     if mock_url:
         step(4, f"Checking mock server reachability → {mock_url}…")
         probe_status = probe_server_health(mock_url)
         if not probe_status.reachable:
-            # ── Server unreachable: hard warning, fall back to passive ────
             print()
             print(f"  {_orange('⚠')} {_bold('ACTIVE PROBES DISABLED — mock server unreachable')}",
                   file=sys.stderr)
@@ -380,15 +331,12 @@ def run_scan(args: argparse.Namespace) -> int:
         _err(f"Risk engine failed: {exc}")
         return _EXIT_ERROR
     total_findings = sum(len(v) for v in risk_results.values())
-    # Warn if any mid-scan probe failures occurred after a successful startup ping
     if probe_status.reachable and probe_status.probes_failed:
         _warn(
             f"{probe_status.probes_failed}/{probe_status.probes_attempted} active probe(s) "
             f"failed mid-scan (ConnectionError). Some findings may be missing."
         )
     ok(f"Risk engine complete — {total_findings} findings across {len(risk_results)} endpoints")
-
-    # ── Step 5: Score ─────────────────────────────────────────────────────
     step(5, "Scoring endpoints…")
     try:
         scored = score_endpoints(risk_results)
@@ -397,7 +345,6 @@ def run_scan(args: argparse.Namespace) -> int:
         return _EXIT_ERROR
 
     if not quiet:
-        # Print scored summary table
         crit_eps = [se for se in scored if se.risk_level == "CRITICAL"]
         high_eps = [se for se in scored if se.risk_level == "HIGH"]
         print()
@@ -414,8 +361,6 @@ def run_scan(args: argparse.Namespace) -> int:
         if all(se.score == 0 for se in scored):
             _ok("No risk findings detected.")
         print()
-
-    # ── Step 6: Generate report ───────────────────────────────────────────
     step(6, f"Rendering HTML report → {args.output}")
     try:
         meta = generate_report(scored, diff_result, spec_result, args.output,
@@ -424,14 +369,11 @@ def run_scan(args: argparse.Namespace) -> int:
         _err(f"Report generation failed: {exc}")
         return _EXIT_ERROR
     ok(f"Report written: {_bold(meta.output_path)}")
-
-    # ── Final summary ─────────────────────────────────────────────────────
     print()
     print(_bold("  ── Scan Summary " + "─" * 40))
     print(f"  Overall Risk Exposure : {_sev(meta.highest_severity)}  ({meta.gateway_score}/100)")
     print(f"  Shadow endpoints      : {_red(str(meta.shadow_count)) if meta.shadow_count else _green('0')}")
     print(f"  Critical findings     : {_red(str(meta.critical_count)) if meta.critical_count else _green('0')}")
-    # Show probe status in summary so user always knows what ran
     if not probe_status.reachable and mock_url:
         print(f"  Active probes         : {_orange('SKIPPED')} — server unreachable ({probe_status.error_detail})")
     elif probe_status.reachable:
@@ -442,8 +384,6 @@ def run_scan(args: argparse.Namespace) -> int:
         print(f"  Active probes         : {pline}")
     print(f"  Report                : {meta.output_path}")
     print()
-
-    # ── Exit code ─────────────────────────────────────────────────────────
     if _should_fail(meta.highest_severity, fail_on):
         print(
             f"  {_red('✖')} Exit 1 — {_sev(meta.highest_severity)} findings present "
@@ -455,12 +395,6 @@ def run_scan(args: argparse.Namespace) -> int:
     else:
         _ok(f"Exit 0 — no findings at or above the --fail-on threshold ({args.fail_on})")
         return _EXIT_OK
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Entry point
-# ─────────────────────────────────────────────────────────────────────────────
-
 def main() -> None:
     parser = _build_parser()
     args   = parser.parse_args()
