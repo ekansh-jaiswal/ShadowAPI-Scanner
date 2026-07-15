@@ -3,7 +3,7 @@
 **HCIC-SI2026 — Problem 15 Submission**
 
 > **Disclaimer: synthetic data only.**
-> All data in this repository — patient records, Aadhaar numbers, medical diagnoses, API responses, and everything in the committed `report.html`, `report_up.html`, and `report_down.html` files — is entirely made up, built for demonstration only. No real personal data and no live production system is involved anywhere in this project.
+> All data in this repository — patient records, Aadhaar numbers, medical diagnoses, API responses, and everything is entirely made up, built for demonstration only. No real personal data and no live production system is involved anywhere in this project.
 
 ## Overview
 
