@@ -13,6 +13,9 @@ include/
 pyvenv.cfg
 .venv/
 venv/
+crAPI-main/
+test_docker/
+Ignore/
 
 # OS
 .DS_Store

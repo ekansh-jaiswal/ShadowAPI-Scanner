@@ -199,24 +199,219 @@ def _check_missing_auth(log_record: EndpointRecord, requires_auth: bool) -> Opti
         )
     return None
 
-# Resource types where an "owner" concept applies — only these are eligible for BOLA
-# probing.  Reference/lookup resources (doctors, specialities, hospitals) have no
-# per-user ownership and cross-ID access is expected and legitimate behaviour.
-_OWNERSHIP_SCOPED_RESOURCES = {
-    "patient",        # /patients/{id}, /patient-records/{id}
-    "appointment",    # /appointments/{id}
-    "insurance",      # /insurance-claims
-    "otp",            # /otp/verify — user-bound action
-    "debug",          # /internal/debug/patient/{id} — clearly user-tied
-    "ehr",
-    "prescription",
-}
+# ── Structural ownership-scope detection ─────────────────────────────────────
+#
+# DESIGN: Rather than maintaining an application-specific allowlist of resource
+# keywords, we detect ownership-scoping STRUCTURALLY: any endpoint whose path
+# contains a numeric ID or UUID is presumed to be a per-object resource unless
+# it is explicitly excluded below.
+#
+# This generalises to any application vocabulary (vehicle/{uuid}, order/{id},
+# etc.) without requiring source-code changes for each new domain.
+#
+# The EXCLUSION LIST below covers near-universal public reference/lookup
+# resources that structurally contain IDs but have no meaningful per-user
+# ownership concept.  It is a best-effort default — extend via
+# --exclude-from-bola on the CLI rather than editing this constant.
+
+_PUBLIC_REFERENCE_RESOURCES: frozenset[str] = frozenset({
+    "doctor",      # /doctors/{id} — public directory
+    "product",     # /products/{id} — public catalogue
+    "category",    # /categories/{id} — taxonomy lookup
+    "specialty",   # /specialties/{id}
+    "hospital",    # /hospitals/{id}
+    "health",      # /api/v1/health — liveness probe
+    "status",      # /status — readiness probe
+    "ping",        # /ping
+})
+
+# Regex patterns for recognising instance-ID segments in a path.
+# Both numeric IDs (/patients/111) and UUIDs (/vehicle/fadcf145-.../location)
+# are treated as ownership signals.
+_NUMERIC_ID_IN_PATH = re.compile(r'/(\d+)(?:/|$)')
+_UUID_IN_PATH       = re.compile(
+    r'/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:/|$)',
+    re.IGNORECASE,
+)
 
 
-def _is_ownership_scoped(path_template: str) -> bool:
-    """Return True if the path looks like a per-user / ownership-scoped resource."""
+def _is_ownership_scoped(
+    path_template: str,
+    extra_exclusions: frozenset[str] = frozenset(),
+) -> bool:
+    """
+    Return True if the path structurally looks like a per-object resource
+    (i.e. it contains a numeric ID or UUID segment) AND none of its segments
+    match the public-reference exclusion list.
+
+    This replaces the previous keyword-allowlist approach, which was too
+    narrowly tuned to the healthcare mock server's vocabulary and missed any
+    resource named outside that domain (e.g. crAPI's /vehicle/{uuid}/location).
+
+    Parameters
+    ----------
+    path_template    : normalised path, e.g. /identity/api/v2/vehicle/{id}/location
+    extra_exclusions : additional resource keywords to exclude, supplied at
+                       runtime via --exclude-from-bola
+    """
+    # Structural check: path must contain a numeric ID or UUID placeholder
+    has_id = (
+        "{id}" in path_template
+        or _NUMERIC_ID_IN_PATH.search(path_template) is not None
+        or _UUID_IN_PATH.search(path_template) is not None
+    )
+    if not has_id:
+        return False
+
+    # Exclusion check: any segment word matches a public-reference keyword
+    all_exclusions = _PUBLIC_REFERENCE_RESOURCES | extra_exclusions
     path_lower = path_template.lower()
-    return any(kw in path_lower for kw in _OWNERSHIP_SCOPED_RESOURCES)
+    if any(kw in path_lower for kw in all_exclusions):
+        return False
+
+    return True
+
+
+# ── ID extraction helpers ─────────────────────────────────────────────────────
+
+def _extract_id_segment(raw_path: str) -> tuple[str, str] | None:
+    """
+    Extract the first ownership-identifying segment from a concrete raw path.
+    Returns (matched_string, id_type) where id_type is 'numeric' or 'uuid',
+    or None if no ID-like segment is found.
+
+    Numeric: /patients/111/insurance-claims  → ('111', 'numeric')
+    UUID:    /vehicle/fadcf145-.../location  → ('fadcf145-...', 'uuid')
+    """
+    # UUID takes priority (more specific pattern)
+    m = _UUID_IN_PATH.search(raw_path)
+    if m:
+        return (m.group(1), 'uuid')
+    m = _NUMERIC_ID_IN_PATH.search(raw_path)
+    if m:
+        return (m.group(1), 'numeric')
+    return None
+
+
+def _build_cross_user_pairs(
+    log_record: EndpointRecord,
+) -> list[tuple[str, str, str, str]]:
+    """
+    Scan all raw log entries for this endpoint template and build pairs
+    of (victim_id, victim_path, attacker_token, victim_id_type) where
+    victim and attacker are verifiably different JWT subjects.
+
+    A valid BOLA test requires:
+      - At least two entries with DIFFERENT token subjects
+      - Each entry has a distinct ID segment in the path
+    This ensures we are genuinely testing cross-user access and not
+    merely re-fetching the same user's own object with their own token.
+
+    Returns a list of tuples:
+        (victim_raw_path, victim_id_str, attacker_token, id_type)
+
+    If insufficient data exists, an empty list is returned and the
+    reason is logged explicitly.
+    """
+    # Gather all entries that have: a token subject AND an ID in the path
+    entries_with_id: list[tuple[str, str, str, str]] = []  # (sub, raw_path, id_str, id_type, token)
+    for entry in log_record.raw_entries:
+        if not entry.token:
+            continue
+        extracted = _extract_id_segment(entry.raw_path)
+        if not extracted:
+            continue
+        id_str, id_type = extracted
+        # Decode the JWT subject without verifying the signature
+        sub = _jwt_subject(entry.token)
+        if not sub:
+            continue
+        entries_with_id.append((sub, entry.raw_path, id_str, id_type, entry.token))
+
+    if not entries_with_id:
+        logger.info(
+            "BOLA probe skipped for %s — no log entries with both a token and "
+            "an ID segment were found.",
+            log_record.path_template,
+        )
+        return []
+
+    # Group by subject → pick one representative path+id per subject
+    by_subject: dict[str, tuple[str, str, str, str]] = {}  # sub → (raw_path, id_str, id_type, token)
+    for sub, raw_path, id_str, id_type, token in entries_with_id:
+        if sub not in by_subject:
+            by_subject[sub] = (raw_path, id_str, id_type, token)
+
+    if len(by_subject) < 2:
+        logger.info(
+            "BOLA probe skipped for %s — only one token subject (%s) found in "
+            "log entries. Need at least two distinct users to perform a meaningful "
+            "cross-user access test.",
+            log_record.path_template,
+            next(iter(by_subject)),
+        )
+        return []
+
+    # Build cross-user probe pairs:
+    # For each subject, probe their object using every OTHER subject's token.
+    # In practice for most endpoints we'll have exactly 2 subjects → 2 pairs.
+    subjects = list(by_subject.keys())
+    pairs: list[tuple[str, str, str, str]] = []
+    for i, victim_sub in enumerate(subjects):
+        victim_path, victim_id, id_type, _ = by_subject[victim_sub]
+        # Use the next subject's token as the attacker token
+        attacker_sub = subjects[(i + 1) % len(subjects)]
+        attacker_token = by_subject[attacker_sub][3]
+        pairs.append((victim_path, victim_id, attacker_token, id_type))
+
+    return pairs
+
+
+def _jwt_subject(token_str: str) -> str:
+    """Extract the 'sub' claim from a JWT without verifying the signature.
+    Returns empty string if the token is not a recognisable JWT."""
+    import base64
+    try:
+        jwt = token_str.removeprefix("Bearer ").strip()
+        parts = jwt.split(".")
+        if len(parts) < 2:
+            return ""
+        payload = parts[1]
+        payload += "=" * (4 - len(payload) % 4)
+        import json as _json
+        decoded = _json.loads(base64.urlsafe_b64decode(payload))
+        return decoded.get("sub", "")
+    except Exception:
+        return ""
+
+
+# ── Fallback numeric probe (for mock server with sequential IDs) ──────────────
+
+def _numeric_probe_pairs(
+    log_record: EndpointRecord,
+    fallback_token: str,
+) -> list[tuple[str, str, str, str]]:
+    """
+    Legacy numeric-ID probe: when log data doesn't provide two distinct users
+    (e.g. the original mock server where all tokens are the same format),
+    fall back to id±1 with a fixed fallback token.
+
+    Only called for numeric IDs, not UUIDs (UUID guessing is not meaningful).
+    """
+    pairs = []
+    for raw_path in log_record.sample_raw_paths:
+        extracted = _extract_id_segment(raw_path)
+        if not extracted or extracted[1] != 'numeric':
+            continue
+        id_str, _ = extracted
+        original_id = int(id_str)
+        for tid in [original_id + 1, original_id - 1]:
+            if tid < 1:
+                continue
+            test_path = raw_path.replace(f"/{id_str}", f"/{tid}", 1)
+            pairs.append((test_path, str(tid), fallback_token, 'numeric'))
+        break  # one raw path is enough for the fallback
+    return pairs
 
 
 def _check_bola_and_exposure(
@@ -224,16 +419,25 @@ def _check_bola_and_exposure(
     mock_server_url: str,
     path_template: str = "",
     probe_status: Optional[ProbeStatus] = None,
+    extra_exclusions: frozenset[str] = frozenset(),
 ) -> list[Finding]:
     """
-    Run active BOLA probes against the mock server.
+    Run active BOLA probes against the target server.
 
-    IMPORTANT: This function only runs when probe_status.reachable is True.
-    It will NEVER silently produce findings when the server is unreachable —
-    exceptions are logged at WARNING level and the probe is counted as failed
-    in probe_status.probes_failed.
+    Strategy
+    --------
+    1.  Check ownership scope structurally (any ID/UUID in path) and against
+        the exclusion list.  Skip if not ownership-scoped.
+    2.  Attempt to build cross-user probe pairs from log entries with distinct
+        JWT subjects (preferred — proves real cross-user boundary violation).
+    3.  Fall back to id±1 numeric probing with a hardcoded token only for
+        pure-numeric-ID endpoints where the log lacks two distinct users.
+    4.  For each pair: first try unauthenticated, then wrong-owner token.
+
+    NEVER silently produces findings when the server is unreachable —
+    all network exceptions are counted in probe_status.probes_failed.
     """
-    findings = []
+    findings: list[Finding] = []
 
     # Guard: skip entirely if no URL or server failed health-check
     if not mock_server_url:
@@ -241,105 +445,116 @@ def _check_bola_and_exposure(
     if probe_status is not None and not probe_status.reachable:
         return findings
 
-    # Skip BOLA probe for reference/lookup resources (e.g. /doctors/{id}).
-    # BOLA is only meaningful where the resource has an ownership relationship
-    # to the requesting user.
-    if path_template and not _is_ownership_scoped(path_template):
+    # Structural gate: skip if endpoint is not ownership-scoped
+    if path_template and not _is_ownership_scoped(path_template, extra_exclusions):
         return findings
 
-    id_pattern = re.compile(r'/(\d+)(?:/|\?|$)')
+    # ── Build probe pairs ─────────────────────────────────────────────────
+    # Preferred: cross-user pairs derived from real log token subjects
+    pairs = _build_cross_user_pairs(log_record)
 
-    for raw_path in log_record.sample_raw_paths:
-        match = id_pattern.search(raw_path)
-        if not match:
-            continue
+    # Fallback: for numeric-ID endpoints lacking two distinct users in the log,
+    # use id±1 with the mock server's fixed test token.
+    if not pairs:
+        FALLBACK_TOKEN = "Bearer token-patient-101"
+        pairs = _numeric_probe_pairs(log_record, FALLBACK_TOKEN)
+        if pairs:
+            logger.info(
+                "BOLA probe for %s: using id±1 numeric fallback "
+                "(cross-user log data not available).",
+                path_template,
+            )
 
-        original_id_str = match.group(1)
-        original_id = int(original_id_str)
-        test_ids = [original_id + 1, original_id - 1]
+    if not pairs:
+        logger.info(
+            "BOLA probe skipped for %s — insufficient data for any probe strategy.",
+            path_template,
+        )
+        return findings
 
-        for tid in test_ids:
-            if tid == 101:
-                continue  # skip our own test token's ID
+    # ── Fire probes ───────────────────────────────────────────────────────
+    for victim_path, victim_id, attacker_token, id_type in pairs:
+        test_url = f"{mock_server_url.rstrip('/')}{victim_path}"
 
-            test_path = raw_path.replace(f"/{original_id_str}", f"/{tid}")
-            test_url  = f"{mock_server_url.rstrip('/')}{test_path}"
-
-            # ── Test 1: Unauthenticated ────────────────────────────────────
+        # ── Test 1: Unauthenticated ────────────────────────────────────────
+        if probe_status is not None:
+            probe_status.probes_attempted += 1
+        try:
+            resp_no_auth = requests.get(test_url, timeout=ACTIVE_TIMEOUT)
             if probe_status is not None:
-                probe_status.probes_attempted += 1
-            try:
-                resp_no_auth = requests.get(test_url, timeout=ACTIVE_TIMEOUT)
-                if probe_status is not None:
-                    probe_status.probes_succeeded += 1
-                if resp_no_auth.status_code == 200:
-                    try:
-                        data = resp_no_auth.json()
-                    except ValueError:
-                        data = {}
-                    if data:
-                        findings.append(Finding(
-                            category="API1:2023 Broken Object Level Authorization",
-                            severity="CRITICAL",
-                            title="BOLA (Unauthenticated Access)",
-                            description=(
-                                f"Successfully accessed object ID {tid} with absolutely "
-                                f"NO authentication."
-                            ),
-                            evidence={"url": test_url, "status": 200,
-                                      "response_sample": str(data)[:200]},
-                        ))
-                        _check_pii_exposure(data, findings)
-                        return findings
-            except (requests.exceptions.ConnectionError,
-                    requests.exceptions.Timeout) as exc:
-                if probe_status is not None:
-                    probe_status.probes_failed += 1
-                logger.warning(
-                    "BOLA probe failed (unauthenticated) for %s: %s",
-                    test_url, exc.__class__.__name__,
-                )
-                # Server became unreachable mid-scan — abort remaining probes
-                # for this endpoint to avoid spinning on timeouts.
-                return findings
-
-            # ── Test 2: Wrong-owner token ──────────────────────────────────
+                probe_status.probes_succeeded += 1
+            if resp_no_auth.status_code == 200:
+                try:
+                    data = resp_no_auth.json()
+                except ValueError:
+                    data = {}
+                if data:
+                    findings.append(Finding(
+                        category="API1:2023 Broken Object Level Authorization",
+                        severity="CRITICAL",
+                        title="BOLA (Unauthenticated Access)",
+                        description=(
+                            f"Successfully accessed object '{victim_id}' with NO "
+                            f"authentication."
+                        ),
+                        evidence={"url": test_url, "status": 200,
+                                  "response_sample": str(data)[:400]},
+                    ))
+                    _check_pii_exposure(data, findings)
+                    return findings
+        except (requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout) as exc:
             if probe_status is not None:
-                probe_status.probes_attempted += 1
-            try:
-                headers   = {"Authorization": "Bearer token-patient-101"}
-                resp_auth = requests.get(test_url, headers=headers,
-                                         timeout=ACTIVE_TIMEOUT)
-                if probe_status is not None:
-                    probe_status.probes_succeeded += 1
-                if resp_auth.status_code == 200:
-                    try:
-                        data = resp_auth.json()
-                    except ValueError:
-                        data = {}
-                    if data:
-                        findings.append(Finding(
-                            category="API1:2023 Broken Object Level Authorization",
-                            severity="CRITICAL",
-                            title="BOLA (Cross-User Access)",
-                            description=(
-                                f"Successfully accessed object ID {tid} using a different "
-                                f"user's token."
-                            ),
-                            evidence={"url": test_url, "status": 200,
-                                      "response_sample": str(data)[:200]},
-                        ))
-                        _check_pii_exposure(data, findings)
-                        return findings
-            except (requests.exceptions.ConnectionError,
-                    requests.exceptions.Timeout) as exc:
-                if probe_status is not None:
-                    probe_status.probes_failed += 1
-                logger.warning(
-                    "BOLA probe failed (wrong-token) for %s: %s",
-                    test_url, exc.__class__.__name__,
-                )
-                return findings
+                probe_status.probes_failed += 1
+            logger.warning(
+                "BOLA probe failed (unauthenticated) for %s: %s",
+                test_url, exc.__class__.__name__,
+            )
+            return findings
+
+        # ── Test 2: Wrong-owner token ──────────────────────────────────────
+        if probe_status is not None:
+            probe_status.probes_attempted += 1
+        try:
+            resp_auth = requests.get(
+                test_url,
+                headers={"Authorization": attacker_token},
+                timeout=ACTIVE_TIMEOUT,
+            )
+            if probe_status is not None:
+                probe_status.probes_succeeded += 1
+            if resp_auth.status_code == 200:
+                try:
+                    data = resp_auth.json()
+                except ValueError:
+                    data = {}
+                if data:
+                    findings.append(Finding(
+                        category="API1:2023 Broken Object Level Authorization",
+                        severity="CRITICAL",
+                        title="BOLA (Cross-User Access)",
+                        description=(
+                            f"Successfully accessed object '{victim_id}' using a "
+                            f"different user's token."
+                        ),
+                        evidence={
+                            "url": test_url,
+                            "status": 200,
+                            "attacker_token_prefix": attacker_token[:60],
+                            "response_sample": str(data)[:400],
+                        },
+                    ))
+                    _check_pii_exposure(data, findings)
+                    return findings
+        except (requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout) as exc:
+            if probe_status is not None:
+                probe_status.probes_failed += 1
+            logger.warning(
+                "BOLA probe failed (wrong-token) for %s: %s",
+                test_url, exc.__class__.__name__,
+            )
+            return findings
 
     return findings
 
@@ -458,10 +673,11 @@ def _check_shadow_method_mismatch(endpoint: ShadowEndpoint, spec_result: SpecRes
 
 
 def run_risk_engine(
-    diff_result:     DiffResult,
-    spec_result:     SpecResult,
-    mock_server_url: str         = "",
-    probe_status:    Optional[ProbeStatus] = None,
+    diff_result:      DiffResult,
+    spec_result:      SpecResult,
+    mock_server_url:  str                  = "",
+    probe_status:     Optional[ProbeStatus] = None,
+    exclude_from_bola: frozenset[str]       = frozenset(),
 ) -> dict[str, list[Finding]]:
     """
     Run all risk checks on the diff result and return a dict mapping
@@ -499,7 +715,10 @@ def run_risk_engine(
         f = _check_rate_limiting(lr, is_public_endpoint=False, path_template=tmpl)
         if f: results[tmpl].append(f)
 
-        findings = _check_bola_and_exposure(lr, mock_server_url, path_template=tmpl, probe_status=probe_status)
+        findings = _check_bola_and_exposure(
+            lr, mock_server_url, path_template=tmpl,
+            probe_status=probe_status, extra_exclusions=exclude_from_bola,
+        )
         results[tmpl].extend(findings)
         
     # Check OK (documented) endpoints
@@ -523,12 +742,13 @@ def run_risk_engine(
         f = _check_rate_limiting(lr, is_public_endpoint=is_public, path_template=tmpl)
         if f: results[tmpl].append(f)
 
-        # Pass path_template so the ownership-scope gate can filter /doctors (Bug 1 fix).
-        findings = _check_bola_and_exposure(lr, mock_server_url,
-                                             path_template=tmpl,
-                                             probe_status=probe_status)
+        # Pass path_template and exclusions to the ownership-scope gate.
+        findings = _check_bola_and_exposure(
+            lr, mock_server_url, path_template=tmpl,
+            probe_status=probe_status, extra_exclusions=exclude_from_bola,
+        )
         results[tmpl].extend(findings)
-        
+
     # Fuzzy-reconciled endpoints are treated like OK endpoints for risk purposes.
     for fuzzy in diff_result.fuzzy_reconciled:
         tmpl = fuzzy.discovered_template
@@ -557,7 +777,10 @@ def run_risk_engine(
         f = _check_rate_limiting(lr, is_public_endpoint=is_public, path_template=tmpl)
         if f: results[tmpl].append(f)
 
-        findings = _check_bola_and_exposure(lr, mock_server_url, path_template=tmpl)
+        findings = _check_bola_and_exposure(
+            lr, mock_server_url, path_template=tmpl,
+            extra_exclusions=exclude_from_bola,
+        )
         results[tmpl].extend(findings)
 
     return dict(results)

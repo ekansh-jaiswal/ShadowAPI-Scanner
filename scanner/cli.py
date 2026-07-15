@@ -176,6 +176,14 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
+        "--exclude-from-bola", metavar="RESOURCES", default="",
+        help=(
+            "Comma-separated list of resource-name keywords to exclude from "
+            "active BOLA probing (e.g. 'product,category'). Adds to the built-in "
+            "exclusion list without requiring source-code changes."
+        ),
+    )
+    p.add_argument(
         "--quiet", "-q", action="store_true",
         help="Suppress progress output; only print the final summary",
     )
@@ -270,6 +278,13 @@ def run_scan(args: argparse.Namespace) -> int:
     fail_on     = _parse_fail_on(args.fail_on)
     mock_url    = "" if args.no_active_probes else args.mock_server_url.strip()
 
+    # Parse --exclude-from-bola into a frozenset of lowercase keyword strings
+    exclude_from_bola: frozenset[str] = frozenset(
+        t.strip().lower()
+        for t in args.exclude_from_bola.split(",")
+        if t.strip()
+    )
+
     if not quiet:
         print()
         print(_bold("  🛡️  Shadow API Discovery & Vulnerability Scanner"))
@@ -280,6 +295,8 @@ def run_scan(args: argparse.Namespace) -> int:
         print(f"  Probes    : {mock_url if mock_url else _dim('disabled (passive mode)')}")
         print(f"  Output    : {args.output}")
         print(f"  Fail on   : {', '.join(sorted(fail_on)) if fail_on else _dim('(never fail)')}")
+        if exclude_from_bola:
+            print(f"  BOLA excl.: {', '.join(sorted(exclude_from_bola))}")
         print()
 
     # ── Step 1: Parse logs ────────────────────────────────────────────────
@@ -355,7 +372,10 @@ def run_scan(args: argparse.Namespace) -> int:
         step(4, "Running OWASP risk checks (passive only)…")
 
     try:
-        risk_results = run_risk_engine(diff_result, spec_result, mock_url, probe_status)
+        risk_results = run_risk_engine(
+            diff_result, spec_result, mock_url, probe_status,
+            exclude_from_bola=exclude_from_bola,
+        )
     except Exception as exc:
         _err(f"Risk engine failed: {exc}")
         return _EXIT_ERROR

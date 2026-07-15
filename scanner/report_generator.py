@@ -604,7 +604,7 @@ body {
 <div class="header">
   <div class="header-inner">
     <h1>🛡️ Shadow API Discovery &amp; Vulnerability Report</h1>
-    <div class="subtitle">{{ title }} — SwasthyaConnect API Gateway Security Audit</div>
+    <div class="subtitle">{{ title }} — API Gateway Security Audit</div>
     <div class="meta">Generated {{ generated_at }} · Scanner v1.0 · HCIC-SI2026 Project 15</div>
   </div>
 </div>

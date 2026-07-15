@@ -73,6 +73,9 @@ def score_endpoints(risk_results: Dict[str, List[Finding]]) -> List[ScoredEndpoi
         raw = calculate_score_raw(findings)
         score = min(raw, 100)
         risk_level = determine_risk_level(score)
+        
+        if any(f.severity == "CRITICAL" for f in findings):
+            risk_level = "CRITICAL"
 
         scored_endpoints.append(ScoredEndpoint(
             path_template=endpoint,
