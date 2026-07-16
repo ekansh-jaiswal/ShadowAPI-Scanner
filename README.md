@@ -48,6 +48,19 @@ python scanner/cli.py \
 | `--quiet`, `-q` | Suppress progress output; only print the final summary. |
 | `--version` | Print the tool's version and exit immediately. |
 
+## Scoring Model
+
+The scanner calculates a 0-100 score for each endpoint by summing the weighted severity of all its findings, capped at 100. The weights are: `CRITICAL=40`, `HIGH=25`, `MEDIUM=10`, `LOW=5`, and `INFO=1`.
+
+The summed score maps to a baseline risk band:
+- `CRITICAL`: 75 - 100
+- `HIGH`: 50 - 74
+- `MEDIUM`: 25 - 49
+- `LOW`: 1 - 24
+- `NONE`: 0
+
+However, there is a hard floor for critical vulnerabilities: if an endpoint has ANY finding with a `CRITICAL` severity, its overall risk level is forced to `CRITICAL` regardless of its summed score. An endpoint with a low numeric score will still show a `CRITICAL` badge if even one of its findings is of critical severity.
+
 ## Running Against a Real Target
 
 In a production deployment, `--log-file` accepts standard Nginx or Apache combined access logs. The OpenAPI specification should be exported from the API gateway or developer portal.
@@ -58,11 +71,14 @@ WARNING: The `--mock-server-url` flag enables active BOLA probing, which makes a
 
 The CLI provides staged progress output indicating the status of log parsing, spec diffing, health checks, and risk evaluation.
 
-The process exits with code 1 if findings meet or exceed the `--fail-on` threshold, allowing for CI/CD pipeline gating. An exit code of 0 indicates no findings at or above the threshold. Exit code 2 indicates a usage error, and 3 indicates a runtime error.
+The process returns one of the following exit codes:
+- `0`: Scan completed; no findings met or exceeded the `--fail-on` threshold.
+- `1`: Scan completed; at least one finding met or exceeded the `--fail-on` threshold (used for CI/CD gating).
+- `2`: Usage error (e.g., input files like `--log-file` or `--spec` were not found).
+- `3`: Unexpected runtime error or manual interruption during the scan.
 
 The generated HTML report includes:
-- An executive summary showing the aggregated gateway score (0-100) and highest risk severity.
-- A severity badge for the overall risk exposure.
+- A single Executive Summary section containing stat cards for the overall risk exposure (showing the aggregated gateway score and highest severity badge), total shadow endpoints, critical findings count, and total findings.
 - An attack-surface table listing all discovered endpoints.
 - Expandable finding cards containing HTTP evidence blocks (URLs, status codes, and response samples).
 - DPDP Act 2023 overlay callouts highlighting provisions to review based on the OWASP finding category.
