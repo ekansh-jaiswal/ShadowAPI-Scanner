@@ -1,23 +1,12 @@
 # Shadow API Discovery & Vulnerability Scanner
 
-**HCIC-SI2026 — Problem 15 Submission**
+## Description
 
-> **⚠️ DISCLAIMER: SYNTHETIC DATA ONLY**
->
-> All data in this repository — including patient records, Aadhaar numbers, medical diagnoses, API responses, and the contents of the committed `report.html`, `report_up.html`, and `report_down.html` files — is **100% synthetic and fictional**, generated solely for demonstration purposes. **No real Personally Identifiable Information (PII) or live production systems are involved in this project.**
+This tool performs shadow API discovery by diffing web server access logs against OpenAPI 3.0 specifications to identify undocumented endpoints receiving production traffic. It executes rule-based vulnerability heuristics based on the OWASP API Security Top 10 (2023), including an active Broken Object Level Authorization (BOLA) probe that attempts unauthorized cross-user access against ownership-scoped endpoints to confirm vulnerabilities.
 
-## Overview
+## Prerequisites and Installation
 
-This project is a rule-based (no AI/ML) security scanner designed to discover **"Shadow APIs"** — undocumented endpoints that are actively receiving production traffic — and evaluate them for security risks.
-
-It accomplishes this in two phases:
-
-1. **Passive Log Analysis**: It parses web server access logs (e.g., Nginx) and diffs the discovered traffic patterns against a provided OpenAPI 3.0 specification. Endpoints receiving traffic that aren't in the spec are flagged as "Shadow APIs".
-2. **Active Vulnerability Probing**: Once endpoints are discovered, the scanner evaluates them against the **OWASP API Security Top 10 (2023)** heuristics (e.g., missing authentication, missing rate limiting). Crucially, it performs a live **Broken Object Level Authorization (BOLA)** network probe against ownership-scoped endpoints (like `/patient-records/{id}`) by attempting unauthorized cross-user access to confirm vulnerabilities.
-
-The scanner has also been independently validated against [OWASP crAPI](https://github.com/OWASP/crAPI) — see [Validation Against OWASP crAPI](#validation-against-owasp-crapi) below.
-
-## Installation
+Requires Python 3.11+.
 
 ```bash
 python3.11 -m venv .
@@ -25,26 +14,17 @@ source bin/activate
 pip install -r requirements.txt
 ```
 
-This installs only the scanner's direct dependencies (Flask, Jinja2, PyYAML, openapi-spec-validator, requests). If `pip install` fails with an externally-managed-environment error, your venv likely isn't actually activated — confirm with `which python` and `which pip`, both should point inside this project's `bin/` directory, then re-run `source bin/activate` before retrying.
+## Quick Start (Mock Environment)
 
-For a fully pinned, reproducible environment — including every transitive dependency and `mitmproxy`, needed only for the crAPI traffic-capture workflow — use `requirements-dev.txt` instead:
+Run the mock server in the background, then execute the scanner against the generated synthetic logs. The mock server process blocks the terminal and must be run separately.
 
+Terminal 1:
 ```bash
-pip install -r requirements-dev.txt
+python mock_env/mock_server.py
 ```
 
-## Quick Demo
-
-To run a complete end-to-end scan using the provided mock environment:
-
+Terminal 2:
 ```bash
-# 1. Start the mock API server in the background (defaults to port 8000)
-python mock_env/mock_server.py &
-
-# 2. Generate synthetic traffic (populates mock_env/access.log)
-python mock_env/generate_logs.py
-
-# 3. Run the scanner pipeline
 python scanner/cli.py \
     --log-file mock_env/access.log \
     --spec mock_env/openapi_spec.yaml \
@@ -53,83 +33,53 @@ python scanner/cli.py \
     --fail-on critical,high
 ```
 
-*(Note: `--headers-log` defaults to `access_headers.log` in the same directory as `--log-file`, so it can be omitted.)*
-
-### CLI Flags
+## Flag Reference
 
 | Flag | Description |
 |---|---|
-| `--log-file` | Path to the Nginx-format access log. **Required.** |
-| `--spec` | Path to the OpenAPI spec describing what's officially documented. **Required.** |
-| `--headers-log` | Path to the companion JSONL auth-headers log. Defaults to `access_headers.log` next to `--log-file`. |
-| `--mock-server-url` | Base URL the active BOLA probe sends real requests to. If omitted, the scanner skips live probing and reports passive findings only — same as `--no-active-probes`. |
-| `--no-active-probes` | Disable all live network requests — a fast, read-only pass over the logs and spec. |
-| `--output` | Where to write the HTML report. Defaults to `report.html`. |
-| `--fail-on` | Comma-separated severity floor (e.g. `critical,high`) that determines the process exit code — the flag a CI/CD pipeline should check. |
-| `--exclude-from-bola` | Comma-separated resource names to skip during active BOLA probing, added to the built-in exclusion list for that run only. |
-| `--quiet` | Suppress stage-by-stage console output; print only the final summary and exit code. |
+| `--log-file PATH` | Path to Nginx combined-format access log. |
+| `--headers-log PATH` | Path to companion JSONL auth-headers log (default: same directory as `--log-file`, filename `access_headers.log`). |
+| `--spec PATH` | Path to OpenAPI 3.0 YAML/JSON spec file. |
+| `--mock-server-url URL` | Base URL of the test server for active BOLA probes (e.g. `http://localhost:8000`). Omit or pass empty string to skip active probing. |
+| `--no-active-probes` | Disable all active network probes (overrides `--mock-server-url`). |
+| `--output PATH` | Output path for the HTML report (default: `report.html`). |
+| `--fail-on SEVERITIES` | Comma-separated list of severities that trigger a non-zero exit code for CI/CD gating. Options: `critical`, `high`, `medium`, `low`, `info`. Default: `critical,high`. |
+| `--exclude-from-bola RESOURCES` | Comma-separated list of resource-name keywords to exclude from active BOLA probing (e.g. `product,category`). Adds to the built-in exclusion list without requiring source-code changes. |
+| `--quiet`, `-q` | Suppress progress output; only print the final summary. |
 | `--version` | Print the tool's version and exit immediately. |
 
-**Exit codes:** `0` = no finding at or above the `--fail-on` threshold; `1` = a qualifying finding was found (CI/CD should block); `2` = usage error (e.g. missing `--log-file` or `--spec`).
+## Running Against a Real Target
 
-## Example Reports
+In a production deployment, `--log-file` accepts standard Nginx or Apache combined access logs. The OpenAPI specification should be exported from the API gateway or developer portal.
 
-We have pre-generated example reports to demonstrate the scanner's capabilities and resilience:
+WARNING: The `--mock-server-url` flag enables active BOLA probing, which makes authenticated network requests attempting unauthorized data access across user boundaries. Only point the active probe at systems you own or have explicit written authorization to test.
 
-- [**report.html**](report.html) / [**report_up.html**](report_up.html) — Two separate runs against the live mock server, included to demonstrate identical, reproducible results. Both show the full active BOLA probe evidence with a confirmed risk score of 100/100 (CRITICAL).
-- [**report_down.html**](report_down.html) — Demonstrates the scanner's honest fallback behaviour. When the mock server is unreachable, the scanner explicitly warns the user, gracefully skips active BOLA probes, scores findings accurately based only on passive analysis (score drops to 61/100, HIGH), and displays a prominent warning banner rather than silently serving stale or assumed findings.
+## Reading the Output
+
+The CLI provides staged progress output indicating the status of log parsing, spec diffing, health checks, and risk evaluation.
+
+The process exits with code 1 if findings meet or exceed the `--fail-on` threshold, allowing for CI/CD pipeline gating. An exit code of 0 indicates no findings at or above the threshold. Exit code 2 indicates a usage error, and 3 indicates a runtime error.
+
+The generated HTML report includes:
+- An executive summary showing the aggregated gateway score (0-100) and highest risk severity.
+- A severity badge for the overall risk exposure.
+- An attack-surface table listing all discovered endpoints.
+- Expandable finding cards containing HTTP evidence blocks (URLs, status codes, and response samples).
+- DPDP Act 2023 overlay callouts highlighting provisions to review based on the OWASP finding category.
+- A prominent warning banner if active probes were skipped due to the target server being unreachable.
 
 ## Validation Against OWASP crAPI
 
-To confirm the scanner generalizes beyond its own test fixture, it was also run against [OWASP crAPI](https://github.com/OWASP/crAPI) — an independently built, intentionally vulnerable API. Traffic was captured via `mitmproxy` and converted to the scanner's expected log format using `mitm_to_access_log.py`. The scanner correctly detected and live-confirmed crAPI's documented Challenge 1 BOLA vulnerability, using only IDs it extracted itself from the captured traffic — no requests were hand-crafted.
+This scanner was validated against OWASP crAPI. Network traffic was captured and converted into the expected log format. The OpenAPI specification was supplied independently of the captured traffic. The scanner identified crAPI's Challenge 1 BOLA vulnerability on the `/identity/api/v2/vehicle/{id}/location` endpoint by structurally detecting the UUID and extracting cross-user token pairs from the log data.
 
-This exercise is what the `--exclude-from-bola` flag and the structural (ID-in-path) BOLA detection logic were built to support, since crAPI's vocabulary (vehicles, not patients) doesn't match the mock environment's healthcare-specific keyword list. See `Shadow_API_Scanner_Build_Spec.md` for the full writeup of the generalization fixes this uncovered.
+The OpenAPI specification must come from an independent source rather than being auto-generated from the scanned traffic. If the spec is generated from the same traffic used for analysis, shadow APIs cannot be discovered, as undocumented endpoints would be absorbed into the baseline spec.
 
-**Only run active probing against systems you own or have explicit written permission to test.**
+## Troubleshooting
 
-## Repository Structure
-
-```
-.
-├── mock_env/
-│   ├── access.log              # Synthetic Nginx combined access log
-│   ├── access_headers.log      # Companion JSONL log for Auth headers
-│   ├── generate_logs.py        # Script to simulate API traffic & attacks
-│   ├── mock_server.py          # Vulnerable Flask API server
-│   └── openapi_spec.yaml       # Incomplete OpenAPI 3.0 specification
-├── scanner/
-│   ├── __init__.py
-│   ├── cli.py                  # Pipeline orchestrator and CLI entrypoint
-│   ├── diff_engine.py          # Compares parsed logs against the spec
-│   ├── log_parser.py           # Parses Nginx logs into EndpointRecords
-│   ├── report_generator.py     # Renders the self-contained HTML report
-│   ├── risk_engine.py          # OWASP heuristics & active BOLA probes
-│   ├── scorer.py               # Calculates the 0-100 severity risk score
-│   └── spec_loader.py          # Parses and validates OpenAPI specs
-├── mitm_to_access_log.py       # Converts mitmproxy captures to scanner-format logs (crAPI validation)
-├── report.html                 # Pre-generated example report
-├── report_down.html            # Pre-generated report (server unreachable)
-├── report_up.html              # Pre-generated report (server healthy)
-├── research_log.md             # Rule 4 compliance log of cited resources
-├── Shadow_API_Scanner_Build_Spec.md  # Detailed engineering design spec
-├── USER_MANUAL.md              # Comprehensive usage instructions
-├── requirements.txt            # Direct Python dependencies (scanner only)
-├── requirements-dev.txt        # Fully pinned environment, incl. mitmproxy for crAPI validation
-├── run_gen.sh                  # Helper script for log generation
-├── run_risk_engine.sh          # Helper script for risk engine execution
-└── smoke_test.sh               # Bash script to test the mock server
-```
-
-## Documentation
-
-- [**USER_MANUAL.md**](USER_MANUAL.md): Detailed instructions on configuration, integration, and interpreting scan results.
-- [**Shadow_API_Scanner_Build_Spec.md**](Shadow_API_Scanner_Build_Spec.md): Engineering design spec, including the OWASP crAPI validation writeup.
-- [**research_log.md**](research_log.md): Record of external references, documentation, and tools consulted during development (HCIC-SI2026 Rule 4 Compliance).
-
-> **🛡️ Responsible Use**
->
-> The active probing feature (`--mock-server-url`) makes real HTTP requests that attempt unauthorized data access (BOLA testing). This feature should **only ever be pointed at systems you own or have explicit authorization to test**. Do not point the scanner at production third-party APIs.
+- Mock server blocking: The mock server (`mock_env/mock_server.py`) is a blocking process. It must be run in a separate terminal or backgrounded before invoking `scanner/cli.py`.
+- Unreachable mock server: If the scanner cannot reach the `--mock-server-url` during the initial health check, it will print a warning, skip active BOLA probes, and fall back to passive analysis.
+- Line-count mismatch: The access log and headers log must maintain line-count parity. If lines are dropped or misaligned during capture, log parsing will fail.
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+Licensed under the Apache-2.0 License. See the LICENSE file for details.
